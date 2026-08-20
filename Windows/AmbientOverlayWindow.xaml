@@ -1,0 +1,56 @@
+<Window x:Class="MyAiAssistant.Windows.AmbientOverlayWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ctrl="clr-namespace:MyAiAssistant.Controls"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        Topmost="True"
+        ShowInTaskbar="False"
+        ResizeMode="NoResize"
+        Left="0" Top="0"
+        Width="{Binding Source={x:Static SystemParameters.PrimaryScreenWidth}}"
+        Height="{Binding Source={x:Static SystemParameters.PrimaryScreenHeight}}"
+        Loaded="OnLoaded"
+        Closing="OnClosing">
+
+    <Grid x:Name="RootGrid" Background="Transparent" ClipToBounds="True">
+
+        <!-- Glow layer (click-through, filled by GlowBorder control) -->
+        <ctrl:GlowBorder x:Name="GlowBorder" IsHitTestVisible="False" />
+
+        <!-- Right slide-in panel -->
+        <Border x:Name="PanelRegion"
+                HorizontalAlignment="Right"
+                Width="300"
+                Background="#DD080816"
+                BorderBrush="#337850EE"
+                BorderThickness="1,0,0,0"
+                RenderTransformOrigin="1,0.5"
+                IsHitTestVisible="True">
+            <Border.RenderTransform>
+                <TranslateTransform x:Name="PanelSlideTransform" X="300" />
+            </Border.RenderTransform>
+
+            <DockPanel>
+                <!-- Waveform at bottom -->
+                <ctrl:WaveformVisualizer x:Name="Waveform"
+                                         DockPanel.Dock="Bottom"
+                                         Height="44"
+                                         Margin="0,8,0,12" />
+
+                <!-- Chat messages area -->
+                <ItemsControl x:Name="ChatItems"
+                              DockPanel.Dock="Top"
+                              Margin="12,0"
+                              VerticalAlignment="Stretch">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel VerticalAlignment="Bottom" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                </ItemsControl>
+            </DockPanel>
+        </Border>
+    </Grid>
+</Window>
