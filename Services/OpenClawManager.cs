@@ -12,7 +12,7 @@ public class OpenClawManager : IOpenClawManager
 
     public OpenClawManager()
     {
-        _exePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "OpenClaw", "OpenClaw.exe");
+        _exePath = @"D:\Dev\OpenClaw\OpenClaw.exe";
     }
 
     public void Start()
