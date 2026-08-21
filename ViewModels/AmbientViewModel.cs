@@ -128,7 +128,8 @@ public partial class AmbientViewModel : ObservableObject, IDisposable
             var aiMsg = new ChatMessage { Role = "assistant", Content = "" };
             await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => Messages.Add(aiMsg));
 
-            await foreach (var chunk in _llm.StreamChatAsync(Messages, text, Endpoint, Model, ApiKey))
+            // Messages already contains the user message, pass empty userPrompt
+            await foreach (var chunk in _llm.StreamChatAsync(Messages, "", Endpoint, Model, ApiKey))
             {
                 aiMsg.Content += chunk;
                 var snapshot = aiMsg.Content;

@@ -26,7 +26,10 @@ public class LlmService : ILlmService
             .Where(m => !string.IsNullOrWhiteSpace(m.Content))
             .Select(m => new { role = m.Role, content = m.Content })
             .ToList();
-        messages.Add(new { role = "user", content = userPrompt });
+
+        // Only add userPrompt if it's not empty (to avoid duplicates)
+        if (!string.IsNullOrWhiteSpace(userPrompt))
+            messages.Add(new { role = "user", content = userPrompt });
 
         var payload = JsonSerializer.Serialize(new
         {
