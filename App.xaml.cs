@@ -50,6 +50,16 @@ public partial class App : Application
             _vm?.Deactivate();
             _overlay?.DeactivateOverlay();
         };
+
+        // Show startup confirmation
+        MessageBox.Show(
+            "Fairy AI 已启动！\n\n" +
+            "请说 \"Fairy\" 唤醒我。\n" +
+            "说 \"Exit\" 关闭对话面板。\n\n" +
+            "此窗口关闭后，我将在后台等待唤醒。",
+            "Fairy AI",
+            MessageBoxButton.OK,
+            MessageBoxImage.Information);
     }
 
     private void StartWakeWordDetection()
