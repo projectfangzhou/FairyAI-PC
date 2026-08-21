@@ -14,9 +14,9 @@ public partial class AmbientViewModel : ObservableObject, IDisposable
     private readonly IOpenClawManager _claw;
     private readonly string _sessionId = Guid.NewGuid().ToString("N");
 
-    [ObservableProperty] private string _endpoint = "http://127.0.0.1:8787/v1/chat/completions";
-    [ObservableProperty] private string _model = "llama3";
-    [ObservableProperty] private string? _apiKey;
+    [ObservableProperty] private string _endpoint = "https://token-plan-cn.xiaomimimo.com/v1/chat/completions";
+    [ObservableProperty] private string _model = "mimo-v2.5";
+    [ObservableProperty] private string? _apiKey = "sk-c7jbir8tv5n1emaf1m7enj67wspbsxaklytearhxrymw8anp";
     [ObservableProperty] private bool _isActive;
     [ObservableProperty] private bool _isListening;
     [ObservableProperty] private bool _isProcessing;
@@ -44,7 +44,7 @@ public partial class AmbientViewModel : ObservableObject, IDisposable
     public async Task InitializeAsync()
     {
         await _history.InitializeAsync();
-        _claw.Start();
+        try { _claw.Start(); } catch { /* OpenClaw is optional */ }
     }
 
     public void Activate()

@@ -6,28 +6,26 @@ namespace MyAiAssistant.Services;
 public class OpenClawManager : IOpenClawManager
 {
     private Process? _process;
-    private readonly string _exePath;
 
     public bool IsRunning => _process is { HasExited: false };
 
-    public OpenClawManager()
-    {
-        _exePath = @"D:\Dev\OpenClaw\OpenClaw.exe";
-    }
-
     public void Start()
     {
-        if (IsRunning || !File.Exists(_exePath)) return;
+        if (IsRunning) return;
+
+        // OpenClaw is optional — skip silently if not installed
+        var exePath = FindOpenClaw();
+        if (exePath == null) return;
+
         try
         {
             _process = Process.Start(new ProcessStartInfo
             {
-                FileName = _exePath,
-                Arguments = "--port 8787",
+                FileName = exePath,
+                Arguments = "gateway run --port 8787",
                 UseShellExecute = false,
                 CreateNoWindow = true,
-                RedirectStandardOutput = true,
-                WorkingDirectory = Path.GetDirectoryName(_exePath)
+                RedirectStandardOutput = true
             });
         }
         catch (Exception ex)
@@ -44,4 +42,30 @@ public class OpenClawManager : IOpenClawManager
     }
 
     public void Dispose() => Stop();
+
+    private static string? FindOpenClaw()
+    {
+        // Check common locations
+        string[] paths =
+        [
+            @"D:\npm-global\openclaw.cmd",
+            Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "openclaw.cmd"),
+            Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "OpenClaw", "openclaw.cmd"),
+        ];
+
+        foreach (var p in paths)
+        {
+            if (File.Exists(p)) return p;
+        }
+
+        // Check PATH
+        var pathVar = Environment.GetEnvironmentVariable("PATH") ?? "";
+        foreach (var dir in pathVar.Split(';'))
+        {
+            var candidate = Path.Combine(dir.Trim(), "openclaw.cmd");
+            if (File.Exists(candidate)) return candidate;
+        }
+
+        return null;
+    }
 }
