@@ -56,8 +56,15 @@ public partial class App : Application
             _overlay.Show();
             Log("Overlay window shown");
 
-            StartWakeWordDetection();
-            Log("Wake word detection started");
+            // Delay speech recognition start to ensure audio subsystem is ready
+            var delayTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+            delayTimer.Tick += (_, _) =>
+            {
+                delayTimer.Stop();
+                StartWakeWordDetection();
+            };
+            delayTimer.Start();
+            Log("Wake word detection scheduled (2s delay)");
 
             _inactivityTimer = new DispatcherTimer
             {
@@ -93,21 +100,49 @@ public partial class App : Application
     {
         try
         {
-            // Use system default culture (Chinese if that's what's installed)
-            _wakeEngine = new SpeechRecognitionEngine();
+            // List available audio devices
+            var devices = SpeechRecognitionEngine.InstalledRecognizers();
+            Log($"Installed recognizers: {devices.Count}");
+            foreach (var r in devices)
+                Log($"  - {r.Name} ({r.Culture.Name})");
 
-            // Support both English "Fairy" and Chinese "精灵" wake words
-            var choices = new Choices("Fairy", "fairy", "精灵", "小精灵");
+            // Use zh-CN recognizer (system default) with Chinese wake words
+            var zhCN = devices.FirstOrDefault(r => r.Culture.Name == "zh-CN");
+            if (zhCN != null)
+            {
+                _wakeEngine = new SpeechRecognitionEngine(zhCN.Id);
+                Log($"Using zh-CN recognizer: {zhCN.Name}");
+            }
+            else
+            {
+                _wakeEngine = new SpeechRecognitionEngine();
+                Log($"Using default recognizer: {_wakeEngine.RecognizerInfo.Name}");
+            }
+
+            // Chinese wake words for zh-CN recognizer
+            var choices = new Choices("精灵", "小精灵", "仙子");
             var grammar = new Grammar(new GrammarBuilder(choices));
             _wakeEngine.LoadGrammar(grammar);
+            Log("Grammar loaded");
+
             _wakeEngine.SetInputToDefaultAudioDevice();
+            Log("Audio device set");
+
             _wakeEngine.SpeechRecognized += OnWakeWord;
+            _wakeEngine.AudioLevelUpdated += (_, e) =>
+            {
+                if (e.AudioLevel > 0)
+                    Log($"Audio level: {e.AudioLevel}");
+            };
+            _wakeEngine.SpeechDetected += (_, _) => Log("Speech detected!");
+            _wakeEngine.RecognizeCompleted += (_, e) => Log($"Recognize completed, result: {e.Result?.Text ?? "null"}");
+
             _wakeEngine.RecognizeAsync(RecognizeMode.Multiple);
-            Log($"Speech engine started, culture: {_wakeEngine.RecognizerInfo.Culture.Name}");
+            Log("RecognizeAsync(Multiple) called - listening...");
         }
         catch (Exception ex)
         {
-            Log($"Wake word init FAILED: {ex.Message}");
+            Log($"Wake word init FAILED: {ex}");
             MessageBox.Show($"语音识别初始化失败: {ex.Message}\n\n请检查麦克风权限。",
                 "Fairy AI", MessageBoxButton.OK, MessageBoxImage.Warning);
         }

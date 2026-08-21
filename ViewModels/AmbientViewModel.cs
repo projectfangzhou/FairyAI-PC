@@ -44,7 +44,7 @@ public partial class AmbientViewModel : ObservableObject, IDisposable
     public async Task InitializeAsync()
     {
         await _history.InitializeAsync();
-        try { _claw.Start(); } catch { /* OpenClaw is optional */ }
+        // OpenClaw disabled - using MiMo API directly
     }
 
     public void Activate()
