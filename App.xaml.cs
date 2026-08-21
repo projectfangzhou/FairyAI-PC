@@ -17,6 +17,7 @@ public partial class App : Application
     private AmbientOverlayWindow? _overlay;
     private AmbientViewModel? _vm;
     private SpeechRecognitionEngine? _wakeEngine;
+    private GlobalKeyboardHook? _keyboardHook;
     private DispatcherTimer? _inactivityTimer;
     private const int InactivityTimeoutMs = 30_000;
     private static readonly string LogPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "fairy.log");
@@ -55,6 +56,13 @@ public partial class App : Application
             _overlay = new AmbientOverlayWindow { DataContext = _vm };
             _overlay.Show();
             Log("Overlay window shown");
+
+            // Global keyboard hook: Left Alt hold to activate
+            _keyboardHook = new GlobalKeyboardHook();
+            _keyboardHook.LeftAltPressed += OnLeftAltPressed;
+            _keyboardHook.LeftAltReleased += OnLeftAltReleased;
+            _keyboardHook.Start();
+            Log("Global keyboard hook started (Left Alt)");
 
             // Delay speech recognition start to ensure audio subsystem is ready
             var delayTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
@@ -165,10 +173,33 @@ public partial class App : Application
         });
     }
 
+    private void OnLeftAltPressed()
+    {
+        Log("Left Alt pressed");
+        Dispatcher.Invoke(() =>
+        {
+            _vm?.Activate();
+            _overlay?.ActivateOverlay();
+            _inactivityTimer?.Stop();
+            _inactivityTimer?.Start();
+        });
+    }
+
+    private void OnLeftAltReleased()
+    {
+        Log("Left Alt released");
+        Dispatcher.Invoke(() =>
+        {
+            _vm?.Deactivate();
+            _overlay?.DeactivateOverlay();
+        });
+    }
+
     protected override void OnExit(ExitEventArgs e)
     {
         Log("=== Fairy AI Shutting Down ===");
         _inactivityTimer?.Stop();
+        _keyboardHook?.Dispose();
         _wakeEngine?.RecognizeAsyncStop();
         _wakeEngine?.Dispose();
         _vm?.Dispose();
