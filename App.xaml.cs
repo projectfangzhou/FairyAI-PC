@@ -57,12 +57,11 @@ public partial class App : Application
             _overlay.Show();
             Log("Overlay window shown");
 
-            // Global keyboard hook: Left Alt hold to activate
+            // Global keyboard hook: Left Alt toggle
             _keyboardHook = new GlobalKeyboardHook();
             _keyboardHook.LeftAltPressed += OnLeftAltPressed;
-            _keyboardHook.LeftAltReleased += OnLeftAltReleased;
             _keyboardHook.Start();
-            Log("Global keyboard hook started (Left Alt)");
+            Log("Global keyboard hook started (Left Alt toggle)");
 
             // Delay speech recognition start to ensure audio subsystem is ready
             var delayTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
@@ -173,25 +172,27 @@ public partial class App : Application
         });
     }
 
+    private bool _isOverlayVisible;
+
     private void OnLeftAltPressed()
     {
-        Log("Left Alt pressed");
+        Log($"Left Alt pressed (toggle: !{_isOverlayVisible})");
         Dispatcher.Invoke(() =>
         {
-            _vm?.Activate();
-            _overlay?.ActivateOverlay();
-            _inactivityTimer?.Stop();
-            _inactivityTimer?.Start();
-        });
-    }
-
-    private void OnLeftAltReleased()
-    {
-        Log("Left Alt released");
-        Dispatcher.Invoke(() =>
-        {
-            _vm?.Deactivate();
-            _overlay?.DeactivateOverlay();
+            if (_isOverlayVisible)
+            {
+                _vm?.Deactivate();
+                _overlay?.DeactivateOverlay();
+                _isOverlayVisible = false;
+            }
+            else
+            {
+                _vm?.Activate();
+                _overlay?.ActivateOverlay();
+                _inactivityTimer?.Stop();
+                _inactivityTimer?.Start();
+                _isOverlayVisible = true;
+            }
         });
     }
 

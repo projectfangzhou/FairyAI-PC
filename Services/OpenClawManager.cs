@@ -6,6 +6,7 @@ namespace MyAiAssistant.Services;
 public class OpenClawManager : IOpenClawManager
 {
     private Process? _process;
+    private static readonly string LogPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "fairy.log");
 
     public bool IsRunning => _process is { HasExited: false };
 
@@ -13,24 +14,42 @@ public class OpenClawManager : IOpenClawManager
     {
         if (IsRunning) return;
 
-        // OpenClaw is optional — skip silently if not installed
         var exePath = FindOpenClaw();
-        if (exePath == null) return;
+        if (exePath == null)
+        {
+            Log("OpenClaw not found, skipping");
+            return;
+        }
 
         try
         {
-            _process = Process.Start(new ProcessStartInfo
+            _process = new Process
             {
-                FileName = exePath,
-                Arguments = "gateway run --port 8787",
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                RedirectStandardOutput = true
-            });
+                StartInfo = new ProcessStartInfo
+                {
+                    FileName = exePath,
+                    Arguments = "gateway run --allow-unconfigured --port 8787 --bind loopback",
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    WorkingDirectory = Path.GetDirectoryName(exePath) ?? ""
+                },
+                EnableRaisingEvents = true
+            };
+
+            _process.OutputDataReceived += (_, e) => { if (!string.IsNullOrEmpty(e.Data)) Log($"[OpenClaw] {e.Data}"); };
+            _process.ErrorDataReceived += (_, e) => { if (!string.IsNullOrEmpty(e.Data)) Log($"[OpenClaw ERR] {e.Data}"); };
+
+            _process.Start();
+            _process.BeginOutputReadLine();
+            _process.BeginErrorReadLine();
+
+            Log($"OpenClaw gateway started (PID: {_process.Id})");
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[OpenClaw] Start failed: {ex.Message}");
+            Log($"OpenClaw start failed: {ex.Message}");
         }
     }
 
@@ -45,20 +64,15 @@ public class OpenClawManager : IOpenClawManager
 
     private static string? FindOpenClaw()
     {
-        // Check common locations
         string[] paths =
         [
             @"D:\npm-global\openclaw.cmd",
             Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "openclaw.cmd"),
-            Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "OpenClaw", "openclaw.cmd"),
         ];
 
         foreach (var p in paths)
-        {
             if (File.Exists(p)) return p;
-        }
 
-        // Check PATH
         var pathVar = Environment.GetEnvironmentVariable("PATH") ?? "";
         foreach (var dir in pathVar.Split(';'))
         {
@@ -67,5 +81,10 @@ public class OpenClawManager : IOpenClawManager
         }
 
         return null;
+    }
+
+    private static void Log(string msg)
+    {
+        try { File.AppendAllText(LogPath, $"[{DateTime.Now:HH:mm:ss}] {msg}\n"); } catch { }
     }
 }
