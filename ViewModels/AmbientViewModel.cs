@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.IO;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MyAiAssistant.Models;
@@ -8,6 +9,11 @@ namespace MyAiAssistant.ViewModels;
 
 public partial class AmbientViewModel : ObservableObject, IDisposable
 {
+    private static readonly string LogPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "fairy.log");
+    private static void Log(string msg)
+    {
+        try { File.AppendAllText(LogPath, $"[{DateTime.Now:HH:mm:ss}] {msg}\n"); } catch { }
+    }
     private readonly IContinuousSpeechService _speech;
     private readonly ILlmService _llm;
     private readonly IChatHistoryService _history;
@@ -16,7 +22,7 @@ public partial class AmbientViewModel : ObservableObject, IDisposable
 
     [ObservableProperty] private string _endpoint = "https://token-plan-cn.xiaomimimo.com/v1/chat/completions";
     [ObservableProperty] private string _model = "mimo-v2.5";
-    [ObservableProperty] private string? _apiKey = "sk-c7jbir8tv5n1emaf1m7enj67wspbsxaklytearhxrymw8anp";
+    [ObservableProperty] private string? _apiKey = "sk-c1n1701ggtlme1hi4uai5r8bh0t76urmwwiq7r93v349dee1";
     [ObservableProperty] private bool _isActive;
     [ObservableProperty] private bool _isListening;
     [ObservableProperty] private bool _isProcessing;
@@ -67,24 +73,27 @@ public partial class AmbientViewModel : ObservableObject, IDisposable
 
     private async void OnSpeechRecognized(string text)
     {
+        Log($"OnSpeechRecognized: '{text}', IsActive={IsActive}");
         if (!IsActive) return;
-
-        var userMsg = new ChatMessage { Role = "user", Content = text };
-        await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => Messages.Add(userMsg));
-        await _history.SaveAsync(_sessionId, userMsg);
-
-        IsListening = false;
-        IsProcessing = true;
-        StatusText = "Processing...";
-
-        var aiMsg = new ChatMessage { Role = "assistant", Content = "" };
-        await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => Messages.Add(aiMsg));
 
         try
         {
+            var userMsg = new ChatMessage { Role = "user", Content = text };
+            await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => Messages.Add(userMsg));
+            await _history.SaveAsync(_sessionId, userMsg);
+
+            IsListening = false;
+            IsProcessing = true;
+            StatusText = "Processing...";
+
+            Log($"Calling LLM: endpoint={Endpoint}, model={Model}");
+            var aiMsg = new ChatMessage { Role = "assistant", Content = "" };
+            await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => Messages.Add(aiMsg));
+
             await foreach (var chunk in _llm.StreamChatAsync(Messages, text, Endpoint, Model, ApiKey))
             {
                 aiMsg.Content += chunk;
+                Log($"LLM chunk: {chunk}");
                 var snapshot = aiMsg.Content;
                 await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                 {
@@ -101,10 +110,11 @@ public partial class AmbientViewModel : ObservableObject, IDisposable
                 });
             }
             await _history.SaveAsync(_sessionId, aiMsg);
+            Log("LLM response complete");
         }
         catch (Exception ex)
         {
-            aiMsg.Content = $"Error: {ex.Message}";
+            Log($"LLM ERROR: {ex}");
         }
 
         IsProcessing = false;
