@@ -42,17 +42,54 @@
                                FontSize="9" Margin="0,4,0,0" />
                 </StackPanel>
 
-                <!-- Waveform at bottom -->
+                <!-- Input area at very bottom -->
+                <Grid DockPanel.Dock="Bottom" Margin="12,0,12,12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBox x:Name="InputBox"
+                             Grid.Column="0"
+                             Text="{Binding InputText, UpdateSourceTrigger=PropertyChanged}"
+                             Background="#1AFFFFFF"
+                             Foreground="#E0E0F0"
+                             BorderBrush="#337850EE"
+                             BorderThickness="1"
+                             Padding="8,6"
+                             FontSize="11"
+                             VerticalContentAlignment="Center"
+                             MaxLength="500"
+                             AcceptsReturn="False">
+                        <TextBox.InputBindings>
+                            <KeyBinding Key="Return"
+                                        Command="{Binding SendTextCommand}"
+                                        CommandParameter="{Binding Text, ElementName=InputBox}" />
+                        </TextBox.InputBindings>
+                    </TextBox>
+                    <Button Grid.Column="1"
+                            Content="&#x27A4;"
+                            Command="{Binding SendTextCommand}"
+                            CommandParameter="{Binding Text, ElementName=InputBox}"
+                            Background="#337850EE"
+                            Foreground="#B8B8D0"
+                            BorderThickness="0"
+                            Padding="10,6"
+                            Margin="6,0,0,0"
+                            FontSize="13"
+                            Cursor="Hand" />
+                </Grid>
+
+                <!-- Waveform -->
                 <ctrl:WaveformVisualizer x:Name="Waveform"
                                          DockPanel.Dock="Bottom"
-                                         Height="44"
-                                         Margin="0,8,0,12"
+                                         Height="36"
+                                         Margin="0,4,0,4"
                                          IsActive="{Binding IsListening}"
                                          Amplitude="{Binding AudioLevel}" />
 
                 <!-- Divider -->
                 <Border DockPanel.Dock="Bottom" Height="1"
-                        Background="#15FFFFFF" Margin="16,4" />
+                        Background="#15FFFFFF" Margin="16,2" />
 
                 <!-- Chat messages area -->
                 <ScrollViewer DockPanel.Dock="Top"

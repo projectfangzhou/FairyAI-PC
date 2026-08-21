@@ -28,6 +28,7 @@ public partial class AmbientViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool _isProcessing;
     [ObservableProperty] private float _audioLevel;
     [ObservableProperty] private string _statusText = "Say \"Fairy\" to activate";
+    [ObservableProperty] private string _inputText = string.Empty;
 
     public ObservableCollection<ChatMessage> Messages { get; } = [];
 
@@ -75,6 +76,44 @@ public partial class AmbientViewModel : ObservableObject, IDisposable
     {
         Log($"OnSpeechRecognized: '{text}', IsActive={IsActive}");
         if (!IsActive) return;
+        await ProcessUserInput(text);
+    }
+
+    private void OnSpeechEnded()
+    {
+        System.Windows.Application.Current.Dispatcher.Invoke(() =>
+        {
+            Deactivate();
+            SpeechEnded?.Invoke();
+        });
+    }
+
+    private void OnAudioLevel(float level)
+    {
+        AudioLevel = level;
+    }
+
+    public event Action? SpeechEnded;
+
+    [RelayCommand]
+    private async Task SendTextAsync(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return;
+        var msg = text.Trim();
+        InputText = string.Empty;
+
+        // Reuse the same LLM call logic as voice
+        await ProcessUserInput(msg);
+    }
+
+    private async Task ProcessUserInput(string text)
+    {
+        Log($"ProcessUserInput: '{text}'");
+        if (!IsActive)
+        {
+            IsActive = true;
+            StatusText = "Processing...";
+        }
 
         try
         {
@@ -86,14 +125,12 @@ public partial class AmbientViewModel : ObservableObject, IDisposable
             IsProcessing = true;
             StatusText = "Processing...";
 
-            Log($"Calling LLM: endpoint={Endpoint}, model={Model}");
             var aiMsg = new ChatMessage { Role = "assistant", Content = "" };
             await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => Messages.Add(aiMsg));
 
             await foreach (var chunk in _llm.StreamChatAsync(Messages, text, Endpoint, Model, ApiKey))
             {
                 aiMsg.Content += chunk;
-                Log($"LLM chunk: {chunk}");
                 var snapshot = aiMsg.Content;
                 await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                 {
@@ -121,22 +158,6 @@ public partial class AmbientViewModel : ObservableObject, IDisposable
         IsListening = true;
         StatusText = "Listening...";
     }
-
-    private void OnSpeechEnded()
-    {
-        System.Windows.Application.Current.Dispatcher.Invoke(() =>
-        {
-            Deactivate();
-            SpeechEnded?.Invoke();
-        });
-    }
-
-    private void OnAudioLevel(float level)
-    {
-        AudioLevel = level;
-    }
-
-    public event Action? SpeechEnded;
 
     public void Dispose()
     {
