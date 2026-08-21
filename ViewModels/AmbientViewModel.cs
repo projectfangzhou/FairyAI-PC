@@ -20,9 +20,9 @@ public partial class AmbientViewModel : ObservableObject, IDisposable
     private readonly IOpenClawManager _claw;
     private readonly string _sessionId = Guid.NewGuid().ToString("N");
 
-    [ObservableProperty] private string _endpoint = "https://token-plan-cn.xiaomimimo.com/v1/chat/completions";
-    [ObservableProperty] private string _model = "mimo-v2.5";
-    [ObservableProperty] private string? _apiKey = "sk-c1n1701ggtlme1hi4uai5r8bh0t76urmwwiq7r93v349dee1";
+    [ObservableProperty] private string _endpoint = "https://api.moonshot.cn/v1/chat/completions";
+    [ObservableProperty] private string _model = "kimi-k2.6";
+    [ObservableProperty] private string? _apiKey = "sk-AJjPEqZImXxDtZwGg4PwmSy2WBuaTbbs4o8mTHlx4VoqBcIv";
     [ObservableProperty] private bool _isActive;
     [ObservableProperty] private bool _isListening;
     [ObservableProperty] private bool _isProcessing;
