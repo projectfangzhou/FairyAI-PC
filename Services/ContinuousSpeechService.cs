@@ -47,7 +47,9 @@ public class ContinuousSpeechService : IContinuousSpeechService
 
         if (e.Result.Text.Contains("exit", StringComparison.OrdinalIgnoreCase) ||
             e.Result.Text.Contains("quit", StringComparison.OrdinalIgnoreCase) ||
-            e.Result.Text.Contains("close", StringComparison.OrdinalIgnoreCase))
+            e.Result.Text.Contains("close", StringComparison.OrdinalIgnoreCase) ||
+            e.Result.Text.Contains("退出") ||
+            e.Result.Text.Contains("关闭"))
         {
             SpeechEnded?.Invoke();
             return;

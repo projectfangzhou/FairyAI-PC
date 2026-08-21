@@ -80,8 +80,8 @@ public partial class App : Application
 
             MessageBox.Show(
                 "Fairy AI 已启动！\n\n" +
-                "请说 \"Fairy\" 唤醒我。\n" +
-                "说 \"Exit\" 关闭对话面板。\n\n" +
+                "请说 \"仙灵\" 唤醒我。\n" +
+                "说 \"退出\" 关闭对话面板。\n\n" +
                 "此窗口关闭后，我将在后台等待唤醒。",
                 "Fairy AI",
                 MessageBoxButton.OK,
@@ -120,7 +120,7 @@ public partial class App : Application
             }
 
             // Chinese wake words for zh-CN recognizer
-            var choices = new Choices("精灵", "小精灵", "仙子");
+            var choices = new Choices("仙灵", "小仙灵", "仙子");
             var grammar = new Grammar(new GrammarBuilder(choices));
             _wakeEngine.LoadGrammar(grammar);
             Log("Grammar loaded");
