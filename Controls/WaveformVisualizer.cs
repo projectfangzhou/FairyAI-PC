@@ -24,9 +24,16 @@ public class WaveformVisualizer : ContentControl
 
     public double Amplitude
     {
-        get => _amplitude;
-        set => _amplitude = Math.Clamp(value, 0, 1);
+        get => (double)GetValue(AmplitudeProperty);
+        set => SetValue(AmplitudeProperty, value);
     }
+
+    public static readonly DependencyProperty AmplitudeProperty =
+        DependencyProperty.Register(nameof(Amplitude), typeof(double), typeof(WaveformVisualizer),
+            new PropertyMetadata(0.0, (d, e) =>
+            {
+                if (d is WaveformVisualizer w) w._amplitude = Math.Clamp((double)e.NewValue, 0, 1);
+            }));
 
     public bool IsActive
     {

@@ -18,8 +18,7 @@ public class ContinuousSpeechService : IContinuousSpeechService
         if (_isListening) return;
         try
         {
-            var culture = new CultureInfo("en-US");
-            _engine = new SpeechRecognitionEngine(culture);
+            _engine = new SpeechRecognitionEngine();
             _engine.LoadGrammar(new DictationGrammar());
             _engine.SetInputToDefaultAudioDevice();
 
