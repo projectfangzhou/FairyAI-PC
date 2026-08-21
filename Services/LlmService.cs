@@ -11,6 +11,7 @@ namespace MyAiAssistant.Services;
 public class LlmService : ILlmService
 {
     private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(60) };
+    private static readonly string LogPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "fairy.log");
 
     public async IAsyncEnumerable<string> StreamChatAsync(
         IEnumerable<ChatMessage> history,
@@ -20,7 +21,11 @@ public class LlmService : ILlmService
         string? apiKey = null,
         [EnumeratorCancellation] CancellationToken ct = default)
     {
-        var messages = history.Select(m => new { role = m.Role, content = m.Content }).ToList();
+        // Filter out empty messages (Kimi rejects empty assistant messages)
+        var messages = history
+            .Where(m => !string.IsNullOrWhiteSpace(m.Content))
+            .Select(m => new { role = m.Role, content = m.Content })
+            .ToList();
         messages.Add(new { role = "user", content = userPrompt });
 
         var payload = JsonSerializer.Serialize(new
@@ -29,6 +34,9 @@ public class LlmService : ILlmService
             messages,
             stream = true
         });
+
+        Log($"LLM Request: endpoint={endpoint}, model={model}, messages={messages.Count}");
+        Log($"LLM Payload: {payload}");
 
         using var req = new HttpRequestMessage(HttpMethod.Post, endpoint)
         {
@@ -39,7 +47,15 @@ public class LlmService : ILlmService
             req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
 
         using var resp = await Http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
-        resp.EnsureSuccessStatusCode();
+
+        if (!resp.IsSuccessStatusCode)
+        {
+            var errorBody = await resp.Content.ReadAsStringAsync(ct);
+            Log($"LLM ERROR {resp.StatusCode}: {errorBody}");
+            yield break;
+        }
+
+        Log("LLM Response OK, streaming...");
 
         using var stream = await resp.Content.ReadAsStreamAsync(ct);
         using var reader = new StreamReader(stream);
@@ -61,6 +77,9 @@ public class LlmService : ILlmService
                     var delta = doc.RootElement.GetProperty("choices")[0].GetProperty("delta");
                     if (delta.TryGetProperty("content", out var c))
                         text = c.GetString();
+                    // Also check reasoning_content for Kimi models
+                    else if (delta.TryGetProperty("reasoning_content", out var r))
+                        text = r.GetString();
                 }
             }
             catch { }
@@ -68,5 +87,10 @@ public class LlmService : ILlmService
             if (!string.IsNullOrEmpty(text))
                 yield return text;
         }
+    }
+
+    private static void Log(string msg)
+    {
+        try { File.AppendAllText(LogPath, $"[{DateTime.Now:HH:mm:ss}] {msg}\n"); } catch { }
     }
 }
