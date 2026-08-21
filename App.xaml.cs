@@ -77,16 +77,6 @@ public partial class App : Application
                 _overlay?.DeactivateOverlay();
             };
             Log("Inactivity timer configured");
-
-            MessageBox.Show(
-                "Fairy AI 已启动！\n\n" +
-                "请说 \"仙灵\" 唤醒我。\n" +
-                "说 \"退出\" 关闭对话面板。\n\n" +
-                "此窗口关闭后，我将在后台等待唤醒。",
-                "Fairy AI",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
-            Log("Startup MessageBox shown");
         }
         catch (Exception ex)
         {
@@ -106,12 +96,12 @@ public partial class App : Application
             foreach (var r in devices)
                 Log($"  - {r.Name} ({r.Culture.Name})");
 
-            // Use zh-CN recognizer (system default) with Chinese wake words
-            var zhCN = devices.FirstOrDefault(r => r.Culture.Name == "zh-CN");
-            if (zhCN != null)
+            // Use en-US recognizer for English wake word "Fairy"
+            var enUS = devices.FirstOrDefault(r => r.Culture.Name == "en-US");
+            if (enUS != null)
             {
-                _wakeEngine = new SpeechRecognitionEngine(zhCN.Id);
-                Log($"Using zh-CN recognizer: {zhCN.Name}");
+                _wakeEngine = new SpeechRecognitionEngine(enUS.Id);
+                Log($"Using en-US recognizer: {enUS.Name}");
             }
             else
             {
@@ -119,9 +109,13 @@ public partial class App : Application
                 Log($"Using default recognizer: {_wakeEngine.RecognizerInfo.Name}");
             }
 
-            // Chinese wake words for zh-CN recognizer
-            var choices = new Choices("仙灵", "小仙灵", "仙子");
-            var grammar = new Grammar(new GrammarBuilder(choices));
+            // English wake words for en-US recognizer
+            var choices = new Choices("Fairy", "fairy");
+            var grammarBuilder = new GrammarBuilder(choices)
+            {
+                Culture = new CultureInfo("en-US")
+            };
+            var grammar = new Grammar(grammarBuilder);
             _wakeEngine.LoadGrammar(grammar);
             Log("Grammar loaded");
 
