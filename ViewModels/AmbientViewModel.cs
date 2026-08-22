@@ -138,45 +138,19 @@ public partial class AmbientViewModel : ObservableObject, IDisposable
                 fullResponse.Append(chunk);
                 updateCounter++;
 
-                // Update UI every 10 chunks or on last chunks
-                if (updateCounter % 10 == 0 || chunk.Length > 0)
+                // Update UI every 5 chunks
+                if (updateCounter % 5 == 0)
                 {
-                    var snapshot = fullResponse.ToString();
-                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
-                    {
-                        var idx = Messages.IndexOf(aiMsg);
-                        if (idx >= 0)
-                        {
-                            Messages.RemoveAt(idx);
-                            Messages.Insert(idx, new ChatMessage
-                            {
-                                Id = aiMsg.Id, Role = "assistant",
-                                Content = snapshot, Timestamp = aiMsg.Timestamp
-                            });
-                        }
-                    });
+                    aiMsg.Content = fullResponse.ToString();
                 }
             }
 
-            // Final update with complete response
-            var finalText = fullResponse.ToString();
-            Log($"LLM final response: {finalText}");
-            await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
-            {
-                var idx = Messages.IndexOf(aiMsg);
-                if (idx >= 0)
-                {
-                    Messages.RemoveAt(idx);
-                    Messages.Insert(idx, new ChatMessage
-                    {
-                        Id = aiMsg.Id, Role = "assistant",
-                        Content = finalText, Timestamp = aiMsg.Timestamp
-                    });
-                }
-            });
+            // Final update
+            aiMsg.Content = fullResponse.ToString();
+            Log($"LLM final response: {aiMsg.Content}");
 
             // Save to history
-            var savedMsg = new ChatMessage { Id = aiMsg.Id, Role = "assistant", Content = finalText, Timestamp = aiMsg.Timestamp };
+            var savedMsg = new ChatMessage { Id = aiMsg.Id, Role = "assistant", Content = aiMsg.Content, Timestamp = aiMsg.Timestamp };
             await _history.SaveAsync(_sessionId, savedMsg);
             Log("LLM response complete");
         }

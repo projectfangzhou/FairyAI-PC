@@ -120,7 +120,7 @@
                                     </Border>
                                     <!-- AI message (left-aligned) -->
                                     <Border HorizontalAlignment="Left"
-                                            MaxWidth="250"
+                                            MaxWidth="270"
                                             Background="#147850EE"
                                             CornerRadius="10,10,10,3"
                                             Padding="10"
