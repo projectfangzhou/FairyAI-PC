@@ -78,11 +78,9 @@ public class LlmService : ILlmService
                 if (doc.RootElement.GetProperty("choices").GetArrayLength() > 0)
                 {
                     var delta = doc.RootElement.GetProperty("choices")[0].GetProperty("delta");
+                    // Only use 'content', ignore 'reasoning_content' (thinking process)
                     if (delta.TryGetProperty("content", out var c))
                         text = c.GetString();
-                    // Also check reasoning_content for Kimi models
-                    else if (delta.TryGetProperty("reasoning_content", out var r))
-                        text = r.GetString();
                 }
             }
             catch { }
