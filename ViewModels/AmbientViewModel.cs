@@ -125,29 +125,59 @@ public partial class AmbientViewModel : ObservableObject, IDisposable
             IsProcessing = true;
             StatusText = "Processing...";
 
-            var aiMsg = new ChatMessage { Role = "assistant", Content = "" };
+            // Add placeholder AI message
+            var aiMsg = new ChatMessage { Role = "assistant", Content = "..." };
             await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => Messages.Add(aiMsg));
 
-            // Messages already contains the user message, pass empty userPrompt
+            // Accumulate response locally, update UI periodically
+            var fullResponse = new System.Text.StringBuilder();
+            int updateCounter = 0;
+
             await foreach (var chunk in _llm.StreamChatAsync(Messages, "", Endpoint, Model, ApiKey))
             {
-                aiMsg.Content += chunk;
-                var snapshot = aiMsg.Content;
-                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                fullResponse.Append(chunk);
+                updateCounter++;
+
+                // Update UI every 10 chunks or on last chunks
+                if (updateCounter % 10 == 0 || chunk.Length > 0)
                 {
-                    var idx = Messages.IndexOf(aiMsg);
-                    if (idx >= 0)
+                    var snapshot = fullResponse.ToString();
+                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                     {
-                        Messages.RemoveAt(idx);
-                        Messages.Insert(idx, new ChatMessage
+                        var idx = Messages.IndexOf(aiMsg);
+                        if (idx >= 0)
                         {
-                            Id = aiMsg.Id, Role = "assistant",
-                            Content = snapshot, Timestamp = aiMsg.Timestamp
-                        });
-                    }
-                });
+                            Messages.RemoveAt(idx);
+                            Messages.Insert(idx, new ChatMessage
+                            {
+                                Id = aiMsg.Id, Role = "assistant",
+                                Content = snapshot, Timestamp = aiMsg.Timestamp
+                            });
+                        }
+                    });
+                }
             }
-            await _history.SaveAsync(_sessionId, aiMsg);
+
+            // Final update with complete response
+            var finalText = fullResponse.ToString();
+            Log($"LLM final response: {finalText}");
+            await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+            {
+                var idx = Messages.IndexOf(aiMsg);
+                if (idx >= 0)
+                {
+                    Messages.RemoveAt(idx);
+                    Messages.Insert(idx, new ChatMessage
+                    {
+                        Id = aiMsg.Id, Role = "assistant",
+                        Content = finalText, Timestamp = aiMsg.Timestamp
+                    });
+                }
+            });
+
+            // Save to history
+            var savedMsg = new ChatMessage { Id = aiMsg.Id, Role = "assistant", Content = finalText, Timestamp = aiMsg.Timestamp };
+            await _history.SaveAsync(_sessionId, savedMsg);
             Log("LLM response complete");
         }
         catch (Exception ex)

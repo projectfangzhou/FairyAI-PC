@@ -73,31 +73,39 @@ public class LlmService : ILlmService
         using var stream = await resp.Content.ReadAsStreamAsync(ct);
         using var reader = new StreamReader(stream);
 
+        int chunkCount = 0;
         while (!reader.EndOfStream && !ct.IsCancellationRequested)
         {
             var line = await reader.ReadLineAsync(ct);
             if (string.IsNullOrWhiteSpace(line) || !line.StartsWith("data: ")) continue;
 
             var data = line["data: ".Length..].Trim();
-            if (data == "[DONE]") break;
+            if (data == "[DONE]") { Log("LLM [DONE] received"); break; }
 
             string? text = null;
+            string? reasoning = null;
             try
             {
                 using var doc = JsonDocument.Parse(data);
                 if (doc.RootElement.GetProperty("choices").GetArrayLength() > 0)
                 {
                     var delta = doc.RootElement.GetProperty("choices")[0].GetProperty("delta");
-                    // Only use 'content', ignore 'reasoning_content' (thinking process)
                     if (delta.TryGetProperty("content", out var c))
                         text = c.GetString();
+                    if (delta.TryGetProperty("reasoning_content", out var r))
+                        reasoning = r.GetString();
                 }
             }
             catch { }
 
+            chunkCount++;
+            if (chunkCount <= 5 || !string.IsNullOrEmpty(text))
+                Log($"Chunk #{chunkCount}: content='{text}' reasoning='{reasoning?.Substring(0, Math.Min(30, reasoning?.Length ?? 0))}'");
+
             if (!string.IsNullOrEmpty(text))
                 yield return text;
         }
+        Log($"LLM streaming done, {chunkCount} chunks total");
     }
 
     private static void Log(string msg)
