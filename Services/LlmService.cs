@@ -21,11 +21,21 @@ public class LlmService : ILlmService
         string? apiKey = null,
         [EnumeratorCancellation] CancellationToken ct = default)
     {
-        // Filter out empty messages (Kimi rejects empty assistant messages)
-        var messages = history
+        // System prompt for Fairy AI
+        var systemMessage = new { role = "system", content = "你是 Fairy，一个友善的 AI 助手。你运行在用户的 Windows 桌面上。你可以回答问题、提供建议、进行闲聊。对于你无法执行的操作（如打开文件、控制系统），请礼貌地说明并提供替代建议。回复简洁自然，像朋友对话一样。" };
+
+        // Filter out empty messages, keep last 10 exchanges to avoid context bloat
+        var historyMessages = history
             .Where(m => !string.IsNullOrWhiteSpace(m.Content))
             .Select(m => new { role = m.Role, content = m.Content })
             .ToList();
+
+        // Limit history to last 20 messages (10 exchanges)
+        if (historyMessages.Count > 20)
+            historyMessages = historyMessages.Skip(historyMessages.Count - 20).ToList();
+
+        var messages = new List<object> { systemMessage };
+        messages.AddRange(historyMessages);
 
         // Only add userPrompt if it's not empty (to avoid duplicates)
         if (!string.IsNullOrWhiteSpace(userPrompt))
