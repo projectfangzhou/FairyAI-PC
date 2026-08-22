@@ -138,16 +138,42 @@ public partial class AmbientViewModel : ObservableObject, IDisposable
                 fullResponse.Append(chunk);
                 updateCounter++;
 
-                // Update UI every 5 chunks
+                // Update UI every 5 chunks by replacing message object
                 if (updateCounter % 5 == 0)
                 {
-                    aiMsg.Content = fullResponse.ToString();
+                    var snapshot = fullResponse.ToString();
+                    var msgId = aiMsg.Id;
+                    var msgTs = aiMsg.Timestamp;
+                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                    {
+                        for (int i = Messages.Count - 1; i >= 0; i--)
+                        {
+                            if (Messages[i].Id == msgId)
+                            {
+                                Messages[i] = new ChatMessage { Id = msgId, Role = "assistant", Content = snapshot, Timestamp = msgTs };
+                                break;
+                            }
+                        }
+                    });
                 }
             }
 
             // Final update
-            aiMsg.Content = fullResponse.ToString();
-            Log($"LLM final response: {aiMsg.Content}");
+            var finalText = fullResponse.ToString();
+            var finalId = aiMsg.Id;
+            var finalTs = aiMsg.Timestamp;
+            await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+            {
+                for (int i = Messages.Count - 1; i >= 0; i--)
+                {
+                    if (Messages[i].Id == finalId)
+                    {
+                        Messages[i] = new ChatMessage { Id = finalId, Role = "assistant", Content = finalText, Timestamp = finalTs };
+                        break;
+                    }
+                }
+            });
+            Log($"LLM final response length: {finalText.Length}");
 
             // Save to history
             var savedMsg = new ChatMessage { Id = aiMsg.Id, Role = "assistant", Content = aiMsg.Content, Timestamp = aiMsg.Timestamp };
