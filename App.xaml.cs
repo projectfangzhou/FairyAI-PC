@@ -43,6 +43,7 @@ public partial class App : Application
             sc.AddSingleton<IOpenClawManager, OpenClawManager>();
             sc.AddSingleton<ITavilySearchService, TavilySearchService>();
             sc.AddSingleton<IOpenClawAgentService, OpenClawAgentService>();
+            sc.AddSingleton<IAppMappingService, AppMappingService>();
             sc.AddSingleton<AmbientViewModel>();
             _services = sc.BuildServiceProvider();
             Log("DI container built");

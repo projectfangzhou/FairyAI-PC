@@ -20,6 +20,7 @@ public partial class AmbientViewModel : ObservableObject, IDisposable
     private readonly IOpenClawManager _claw;
     private readonly ITavilySearchService _search;
     private readonly IOpenClawAgentService _agent;
+    private readonly IAppMappingService _mapping;
     private readonly string _sessionId = Guid.NewGuid().ToString("N");
 
     [ObservableProperty] private string _endpoint = "https://api.moonshot.cn/v1/chat/completions";
@@ -32,6 +33,10 @@ public partial class AmbientViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string _statusText = "Say \"Fairy\" to activate";
     [ObservableProperty] private string _inputText = string.Empty;
 
+    // Pending confirmation state
+    private List<string>? _pendingCandidates;
+    private string? _pendingKeyword;
+
     public ObservableCollection<ChatMessage> Messages { get; } = [];
 
     public AmbientViewModel(
@@ -40,7 +45,8 @@ public partial class AmbientViewModel : ObservableObject, IDisposable
         IChatHistoryService history,
         IOpenClawManager claw,
         ITavilySearchService search,
-        IOpenClawAgentService agent)
+        IOpenClawAgentService agent,
+        IAppMappingService mapping)
     {
         _speech = speech;
         _llm = llm;
@@ -48,6 +54,7 @@ public partial class AmbientViewModel : ObservableObject, IDisposable
         _claw = claw;
         _search = search;
         _agent = agent;
+        _mapping = mapping;
 
         _speech.SpeechRecognized += OnSpeechRecognized;
         _speech.SpeechEnded += OnSpeechEnded;
@@ -57,6 +64,7 @@ public partial class AmbientViewModel : ObservableObject, IDisposable
     public async Task InitializeAsync()
     {
         await _history.InitializeAsync();
+        await _mapping.InitializeAsync();
         try { _claw.Start(); } catch { /* OpenClaw is optional */ }
     }
 
@@ -141,13 +149,68 @@ public partial class AmbientViewModel : ObservableObject, IDisposable
             {
                 StatusText = "Executing...";
                 var agentResult = await _agent.ExecuteAsync(text);
-                var agentMsg = new ChatMessage { Role = "assistant", Content = agentResult };
+
+                var agentMsg = new ChatMessage { Role = "assistant", Content = agentResult.Message };
                 await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => Messages.Add(agentMsg));
                 await _history.SaveAsync(_sessionId, agentMsg);
+
+                // If candidates found, enter confirmation mode
+                if (agentResult.NeedsConfirmation)
+                {
+                    _pendingCandidates = agentResult.Candidates;
+                    _pendingKeyword = agentResult.PendingKeyword;
+                    StatusText = "请输入编号确认打开";
+                }
+                else
+                {
+                    _pendingCandidates = null;
+                    _pendingKeyword = null;
+                }
+
+                IsProcessing = false;
+                IsListening = true;
+                Log("Agent request completed");
+                return;
+            }
+
+            // Check if user is confirming a candidate selection
+            if (_pendingCandidates != null && int.TryParse(text.Trim(), out var choice)
+                && choice >= 1 && choice <= _pendingCandidates.Count)
+            {
+                var selectedPath = _pendingCandidates[choice - 1];
+                await _agent.OpenAppAsync(selectedPath);
+
+                // Save to database
+                if (_pendingKeyword != null)
+                {
+                    await _mapping.SaveMappingAsync(_pendingKeyword, selectedPath);
+                    Log($"Saved mapping: {_pendingKeyword} -> {selectedPath}");
+                }
+
+                var confirmMsg = new ChatMessage { Role = "assistant", Content = $"已打开并记住：{_pendingKeyword} → {Path.GetFileName(selectedPath)}" };
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => Messages.Add(confirmMsg));
+                await _history.SaveAsync(_sessionId, confirmMsg);
+
+                _pendingCandidates = null;
+                _pendingKeyword = null;
                 IsProcessing = false;
                 IsListening = true;
                 StatusText = "Listening...";
-                Log("Agent request completed");
+                return;
+            }
+            else if (_pendingCandidates != null)
+            {
+                // Invalid selection
+                var errMsg = new ChatMessage { Role = "assistant", Content = "请输入有效的编号（1-" + _pendingCandidates.Count + "），或说\"取消\"放弃。" };
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => Messages.Add(errMsg));
+
+                if (text.Contains("取消") || text.Contains("cancel"))
+                {
+                    _pendingCandidates = null;
+                    _pendingKeyword = null;
+                }
+                IsProcessing = false;
+                IsListening = true;
                 return;
             }
 
