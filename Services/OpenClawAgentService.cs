@@ -7,94 +7,133 @@ namespace MyAiAssistant.Services;
 public class OpenClawAgentService : IOpenClawAgentService
 {
     private static readonly string LogPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "fairy.log");
-    private readonly string _openclawPath;
 
-    public bool IsAvailable => _openclawPath != null && File.Exists(_openclawPath);
-
-    public OpenClawAgentService()
-    {
-        _openclawPath = FindOpenClaw() ?? "";
-    }
+    public bool IsAvailable => true; // Local agent is always available
 
     public async Task<string> ExecuteAsync(string userRequest)
     {
-        if (!IsAvailable)
+        Log($"Agent request: '{userRequest}'");
+        var lower = userRequest.ToLowerInvariant();
+
+        // Open file/folder
+        if (lower.Contains("打开") || lower.Contains("open"))
         {
-            Log("OpenClaw not available");
-            return "OpenClaw 未安装，无法执行本地操作。";
+            return await HandleOpenCommand(userRequest);
         }
 
-        Log($"OpenClaw agent: '{userRequest}'");
+        // Search files
+        if (lower.Contains("查找") || lower.Contains("搜索") || lower.Contains("search") || lower.Contains("find"))
+        {
+            return await HandleSearchCommand(userRequest);
+        }
+
+        // Default: let LLM handle it
+        return "抱歉，我暂时无法处理这个操作。";
+    }
+
+    private static async Task<string> HandleOpenCommand(string request)
+    {
+        var lower = request.ToLowerInvariant();
+
+        // Open common apps
+        var appMappings = new Dictionary<string, string>
+        {
+            ["文件管理器"] = "explorer.exe",
+            ["文件夹"] = "explorer.exe",
+            ["资源管理器"] = "explorer.exe",
+            ["计算器"] = "calc.exe",
+            ["记事本"] = "notepad.exe",
+            ["画图"] = "mspaint.exe",
+            ["终端"] = "cmd.exe",
+            ["命令行"] = "cmd.exe",
+            ["设置"] = "ms-settings:",
+            ["浏览器"] = "msedge",
+            ["edge"] = "msedge",
+            ["chrome"] = "chrome",
+            ["word"] = "winword",
+            ["excel"] = "excel",
+            ["powerpoint"] = "powerpnt",
+            ["vscode"] = "code",
+            ["visual studio"] = "devenv",
+        };
+
+        foreach (var kvp in appMappings)
+        {
+            if (lower.Contains(kvp.Key))
+            {
+                try
+                {
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = kvp.Value,
+                        UseShellExecute = true
+                    });
+                    return $"已打开 {kvp.Key}。";
+                }
+                catch (Exception ex)
+                {
+                    return $"打开 {kvp.Key} 失败: {ex.Message}";
+                }
+            }
+        }
+
+        // Try to open as file path
+        var path = ExtractPath(request);
+        if (path != null && (File.Exists(path) || Directory.Exists(path)))
+        {
+            try
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = path,
+                    UseShellExecute = true
+                });
+                return $"已打开: {path}";
+            }
+            catch (Exception ex)
+            {
+                return $"打开失败: {ex.Message}";
+            }
+        }
+
+        return "已收到打开请求，但未识别到具体的应用或文件。";
+    }
+
+    private static async Task<string> HandleSearchCommand(string request)
+    {
+        var keyword = request
+            .Replace("查找", "").Replace("搜索", "").Replace("search", "").Replace("find", "")
+            .Replace("文件", "").Replace("file", "").Trim();
+
+        if (string.IsNullOrWhiteSpace(keyword))
+            return "请告诉我你要搜索什么。";
 
         try
         {
-            // Write message to temp file to avoid encoding issues with Chinese
-            var tempFile = Path.Combine(Path.GetTempPath(), $"fairy_agent_{Guid.NewGuid():N}.txt");
-            await File.WriteAllTextAsync(tempFile, userRequest, Encoding.UTF8);
-
-            var psi = new ProcessStartInfo
+            Process.Start(new ProcessStartInfo
             {
-                FileName = _openclawPath,
-                Arguments = $"agent --local --session-id fairy --message-file \"{tempFile}\"",
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                WorkingDirectory = Path.GetDirectoryName(_openclawPath) ?? ""
-            };
-
-            using var process = Process.Start(psi);
-            if (process == null) return "无法启动 OpenClaw 进程。";
-
-            var output = await process.StandardOutput.ReadToEndAsync();
-            var error = await process.StandardError.ReadToEndAsync();
-
-            await process.WaitForExitAsync();
-
-            // Cleanup temp file
-            try { File.Delete(tempFile); } catch { }
-
-            Log($"OpenClaw exit code: {process.ExitCode}");
-
-            if (!string.IsNullOrWhiteSpace(output))
-            {
-                Log($"OpenClaw output: {output[..Math.Min(200, output.Length)]}");
-                return output.Trim();
-            }
-
-            if (!string.IsNullOrWhiteSpace(error))
-            {
-                Log($"OpenClaw error: {error[..Math.Min(200, error.Length)]}");
-                return $"OpenClaw 执行出错: {error.Trim()}";
-            }
-
-            return "OpenClaw 未返回结果。";
+                FileName = "explorer.exe",
+                Arguments = $"search-ms:query={keyword}",
+                UseShellExecute = true
+            });
+            return $"已打开 Windows 搜索: {keyword}";
         }
         catch (Exception ex)
         {
-            Log($"OpenClaw exception: {ex.Message}");
-            return $"OpenClaw 执行异常: {ex.Message}";
+            return $"搜索失败: {ex.Message}";
         }
     }
 
-    private static string? FindOpenClaw()
+    private static string? ExtractPath(string request)
     {
-        string[] paths =
-        [
-            @"D:\npm-global\openclaw.cmd",
-            Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "openclaw.cmd"),
-        ];
-
-        foreach (var p in paths)
-            if (File.Exists(p)) return p;
-
-        var pathVar = Environment.GetEnvironmentVariable("PATH") ?? "";
-        foreach (var dir in pathVar.Split(';'))
+        // Try to find a file path in the request
+        var words = request.Split(' ', '：', ':', '"', '"');
+        foreach (var word in words)
         {
-            var candidate = Path.Combine(dir.Trim(), "openclaw.cmd");
-            if (File.Exists(candidate)) return candidate;
+            var trimmed = word.Trim();
+            if (Path.IsPathRooted(trimmed) || trimmed.Contains('\\') || trimmed.Contains('/'))
+                return trimmed;
         }
-
         return null;
     }
 
