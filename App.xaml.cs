@@ -42,6 +42,7 @@ public partial class App : Application
             sc.AddSingleton<IChatHistoryService, ChatHistoryService>();
             sc.AddSingleton<IOpenClawManager, OpenClawManager>();
             sc.AddSingleton<ITavilySearchService, TavilySearchService>();
+            sc.AddSingleton<IOpenClawAgentService, OpenClawAgentService>();
             sc.AddSingleton<AmbientViewModel>();
             _services = sc.BuildServiceProvider();
             Log("DI container built");

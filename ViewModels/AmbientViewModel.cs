@@ -19,6 +19,7 @@ public partial class AmbientViewModel : ObservableObject, IDisposable
     private readonly IChatHistoryService _history;
     private readonly IOpenClawManager _claw;
     private readonly ITavilySearchService _search;
+    private readonly IOpenClawAgentService _agent;
     private readonly string _sessionId = Guid.NewGuid().ToString("N");
 
     [ObservableProperty] private string _endpoint = "https://api.moonshot.cn/v1/chat/completions";
@@ -38,13 +39,15 @@ public partial class AmbientViewModel : ObservableObject, IDisposable
         ILlmService llm,
         IChatHistoryService history,
         IOpenClawManager claw,
-        ITavilySearchService search)
+        ITavilySearchService search,
+        IOpenClawAgentService agent)
     {
         _speech = speech;
         _llm = llm;
         _history = history;
         _claw = claw;
         _search = search;
+        _agent = agent;
 
         _speech.SpeechRecognized += OnSpeechRecognized;
         _speech.SpeechEnded += OnSpeechEnded;
@@ -133,6 +136,21 @@ public partial class AmbientViewModel : ObservableObject, IDisposable
                 Log($"Search context length: {searchContext.Length}");
             }
 
+            // Check if this is an agent request (open app, file operations, system commands)
+            if (NeedsAgent(text))
+            {
+                StatusText = "Executing...";
+                var agentResult = await _agent.ExecuteAsync(text);
+                var agentMsg = new ChatMessage { Role = "assistant", Content = agentResult };
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => Messages.Add(agentMsg));
+                await _history.SaveAsync(_sessionId, agentMsg);
+                IsProcessing = false;
+                IsListening = true;
+                StatusText = "Listening...";
+                Log("Agent request completed");
+                return;
+            }
+
             IsListening = false;
             IsProcessing = true;
             StatusText = "Processing...";
@@ -211,6 +229,16 @@ public partial class AmbientViewModel : ObservableObject, IDisposable
     {
         string[] keywords = ["今天", "现在", "最新", "新闻", "天气", "价格", "股票", "最近", "当下", "目前",
             "today", "now", "latest", "news", "weather", "price", "stock", "current"];
+        var lower = text.ToLowerInvariant();
+        return keywords.Any(k => lower.Contains(k));
+    }
+
+    private static bool NeedsAgent(string text)
+    {
+        string[] keywords = ["打开", "运行", "启动", "关闭", "创建", "删除", "移动", "复制",
+            "open", "run", "launch", "close", "create", "delete", "move", "copy",
+            "文件夹", "文件", "folder", "file", "程序", "应用", "app", "software",
+            "安装", "卸载", "install", "uninstall", "执行", "execute", "命令", "command"];
         var lower = text.ToLowerInvariant();
         return keywords.Any(k => lower.Contains(k));
     }
