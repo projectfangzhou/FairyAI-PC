@@ -35,7 +35,7 @@ public class OpenClawAgentService : IOpenClawAgentService
             var psi = new ProcessStartInfo
             {
                 FileName = _openclawPath,
-                Arguments = $"agent --local --message-file \"{tempFile}\"",
+                Arguments = $"agent --local --session-id fairy --message-file \"{tempFile}\"",
                 UseShellExecute = false,
                 CreateNoWindow = true,
                 RedirectStandardOutput = true,
