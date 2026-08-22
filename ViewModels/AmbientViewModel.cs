@@ -18,6 +18,7 @@ public partial class AmbientViewModel : ObservableObject, IDisposable
     private readonly ILlmService _llm;
     private readonly IChatHistoryService _history;
     private readonly IOpenClawManager _claw;
+    private readonly ITavilySearchService _search;
     private readonly string _sessionId = Guid.NewGuid().ToString("N");
 
     [ObservableProperty] private string _endpoint = "https://api.moonshot.cn/v1/chat/completions";
@@ -36,12 +37,14 @@ public partial class AmbientViewModel : ObservableObject, IDisposable
         IContinuousSpeechService speech,
         ILlmService llm,
         IChatHistoryService history,
-        IOpenClawManager claw)
+        IOpenClawManager claw,
+        ITavilySearchService search)
     {
         _speech = speech;
         _llm = llm;
         _history = history;
         _claw = claw;
+        _search = search;
 
         _speech.SpeechRecognized += OnSpeechRecognized;
         _speech.SpeechEnded += OnSpeechEnded;
@@ -121,6 +124,15 @@ public partial class AmbientViewModel : ObservableObject, IDisposable
             await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => Messages.Add(userMsg));
             await _history.SaveAsync(_sessionId, userMsg);
 
+            // Check if web search is needed
+            string? searchContext = null;
+            if (NeedsWebSearch(text))
+            {
+                StatusText = "Searching web...";
+                searchContext = await _search.SearchAsync(text);
+                Log($"Search context length: {searchContext.Length}");
+            }
+
             IsListening = false;
             IsProcessing = true;
             StatusText = "Processing...";
@@ -129,11 +141,16 @@ public partial class AmbientViewModel : ObservableObject, IDisposable
             var aiMsg = new ChatMessage { Role = "assistant", Content = "..." };
             await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => Messages.Add(aiMsg));
 
+            // Build effective text with search context
+            var effectiveText = searchContext != null
+                ? $"[联网搜索结果]\n{searchContext}\n\n[用户问题] {text}"
+                : text;
+
             // Accumulate response locally, update UI periodically
             var fullResponse = new System.Text.StringBuilder();
             int updateCounter = 0;
 
-            await foreach (var chunk in _llm.StreamChatAsync(Messages, "", Endpoint, Model, ApiKey))
+            await foreach (var chunk in _llm.StreamChatAsync(Messages, effectiveText, Endpoint, Model, ApiKey))
             {
                 fullResponse.Append(chunk);
                 updateCounter++;
@@ -188,6 +205,14 @@ public partial class AmbientViewModel : ObservableObject, IDisposable
         IsProcessing = false;
         IsListening = true;
         StatusText = "Listening...";
+    }
+
+    private static bool NeedsWebSearch(string text)
+    {
+        string[] keywords = ["今天", "现在", "最新", "新闻", "天气", "价格", "股票", "最近", "当下", "目前",
+            "today", "now", "latest", "news", "weather", "price", "stock", "current"];
+        var lower = text.ToLowerInvariant();
+        return keywords.Any(k => lower.Contains(k));
     }
 
     public void Dispose()
