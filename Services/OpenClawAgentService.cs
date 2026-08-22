@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.IO;
+using System.Text;
 
 namespace MyAiAssistant.Services;
 
@@ -27,10 +28,14 @@ public class OpenClawAgentService : IOpenClawAgentService
 
         try
         {
+            // Write message to temp file to avoid encoding issues with Chinese
+            var tempFile = Path.Combine(Path.GetTempPath(), $"fairy_agent_{Guid.NewGuid():N}.txt");
+            await File.WriteAllTextAsync(tempFile, userRequest, Encoding.UTF8);
+
             var psi = new ProcessStartInfo
             {
                 FileName = _openclawPath,
-                Arguments = $"agent --local \"{userRequest.Replace("\"", "\\\"")}\"",
+                Arguments = $"agent --local --message-file \"{tempFile}\"",
                 UseShellExecute = false,
                 CreateNoWindow = true,
                 RedirectStandardOutput = true,
@@ -45,6 +50,9 @@ public class OpenClawAgentService : IOpenClawAgentService
             var error = await process.StandardError.ReadToEndAsync();
 
             await process.WaitForExitAsync();
+
+            // Cleanup temp file
+            try { File.Delete(tempFile); } catch { }
 
             Log($"OpenClaw exit code: {process.ExitCode}");
 
