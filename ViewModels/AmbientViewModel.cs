@@ -145,14 +145,23 @@ public partial class AmbientViewModel : ObservableObject, IDisposable
                 {
                     var selectedPath = _pendingCandidates[choice - 1];
                     await _agent.OpenAppAsync(selectedPath);
-                    if (_pendingKeyword != null)
+
+                    // Only save exe/bat to database (dangerous files need confirmation)
+                    var ext = Path.GetExtension(selectedPath).ToLowerInvariant();
+                    if (_pendingKeyword != null && ext is (".exe" or ".bat" or ".cmd" or ".com"))
                     {
                         await _mapping.SaveMappingAsync(_pendingKeyword, selectedPath);
                         Log($"Saved mapping: {_pendingKeyword} -> {selectedPath}");
+                        var confirmMsg = new ChatMessage { Role = "assistant", Content = $"已打开并记住：{_pendingKeyword} → {Path.GetFileName(selectedPath)}" };
+                        await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => Messages.Add(confirmMsg));
+                        await _history.SaveAsync(_sessionId, confirmMsg);
                     }
-                    var confirmMsg = new ChatMessage { Role = "assistant", Content = $"已打开并记住：{_pendingKeyword} → {Path.GetFileName(selectedPath)}" };
-                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => Messages.Add(confirmMsg));
-                    await _history.SaveAsync(_sessionId, confirmMsg);
+                    else
+                    {
+                        var confirmMsg = new ChatMessage { Role = "assistant", Content = $"已打开: {Path.GetFileName(selectedPath)}" };
+                        await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => Messages.Add(confirmMsg));
+                        await _history.SaveAsync(_sessionId, confirmMsg);
+                    }
                 }
                 else if (text.Contains("取消") || text.Contains("cancel"))
                 {
@@ -230,36 +239,110 @@ public partial class AmbientViewModel : ObservableObject, IDisposable
     {
         StatusText = "Searching files...";
 
-        // Search using Everything SDK directly
-        var candidates = await _mapping.SearchExeAsync(query);
+        // Auto-correct the query: try original, then lowercase, then with spaces
+        var searchQueries = GenerateSearchVariants(query);
+        var candidates = new List<string>();
 
-        if (candidates.Count > 0)
+        foreach (var q in searchQueries)
         {
+            candidates = await _mapping.SearchExeAsync(q);
+            if (candidates.Count > 0) break;
+        }
+
+        if (candidates.Count == 0)
+        {
+            // No local files found — auto web search
+            StatusText = "Searching web...";
+            var webResult = await _search.SearchAsync(query);
+            var webMsg = new ChatMessage { Role = "assistant", Content = $"本地未找到 \"{query}\" 相关文件。\n\n联网搜索结果：\n{webResult}" };
+            await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => Messages.Add(webMsg));
+            await _history.SaveAsync(_sessionId, webMsg);
+            return;
+        }
+
+        // Check if all results are safe file types (non-exe/bat)
+        var allSafe = candidates.All(c =>
+        {
+            var ext = Path.GetExtension(c).ToLowerInvariant();
+            return ext is not (".exe" or ".bat" or ".cmd" or ".com" or ".scr" or ".msi");
+        });
+
+        if (allSafe && candidates.Count == 1)
+        {
+            // Single safe file — open directly without confirmation
+            var file = candidates[0];
+            await _agent.OpenAppAsync(file);
+            var msg = new ChatMessage { Role = "assistant", Content = $"已打开: {Path.GetFileName(file)}" };
+            await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => Messages.Add(msg));
+            await _history.SaveAsync(_sessionId, msg);
+            Log($"Auto-opened safe file: {file}");
+            return;
+        }
+
+        if (allSafe && candidates.Count > 1)
+        {
+            // Multiple safe files — open the first one, show all
+            var first = candidates[0];
+            await _agent.OpenAppAsync(first);
+
             var sb = new System.Text.StringBuilder();
-            sb.AppendLine($"找到 {candidates.Count} 个与 \"{query}\" 相关的文件：");
-            for (int i = 0; i < candidates.Count; i++)
+            sb.AppendLine($"已自动打开: {Path.GetFileName(first)}");
+            sb.AppendLine($"\n还有 {candidates.Count - 1} 个相关文件：");
+            for (int i = 1; i < Math.Min(candidates.Count, 5); i++)
             {
-                var fileName = Path.GetFileName(candidates[i]);
-                var dir = Path.GetDirectoryName(candidates[i]) ?? "";
-                sb.AppendLine($"{i + 1}. {fileName}");
-                sb.AppendLine($"   位置: {dir}");
+                sb.AppendLine($"{i}. {Path.GetFileName(candidates[i])}");
             }
-            sb.AppendLine("请告诉我编号，我来打开。");
-
-            var agentMsg = new ChatMessage { Role = "assistant", Content = sb.ToString() };
-            await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => Messages.Add(agentMsg));
-            await _history.SaveAsync(_sessionId, agentMsg);
-
-            _pendingCandidates = candidates;
-            _pendingKeyword = query;
-            StatusText = "请输入编号确认打开";
+            var msg = new ChatMessage { Role = "assistant", Content = sb.ToString() };
+            await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => Messages.Add(msg));
+            await _history.SaveAsync(_sessionId, msg);
+            return;
         }
-        else
+
+        // Dangerous files (.exe/.bat) — ask for confirmation
+        var sbConfirm = new System.Text.StringBuilder();
+        sbConfirm.AppendLine($"找到 {candidates.Count} 个与 \"{query}\" 相关的可执行文件：");
+        for (int i = 0; i < Math.Min(candidates.Count, 8); i++)
         {
-            var agentMsg = new ChatMessage { Role = "assistant", Content = $"未找到与 \"{query}\" 相关的文件。" };
-            await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => Messages.Add(agentMsg));
-            await _history.SaveAsync(_sessionId, agentMsg);
+            var fileName = Path.GetFileName(candidates[i]);
+            var dir = Path.GetDirectoryName(candidates[i]) ?? "";
+            sbConfirm.AppendLine($"{i + 1}. {fileName}");
+            sbConfirm.AppendLine($"   位置: {dir}");
         }
+        sbConfirm.AppendLine("请告诉我编号，我来打开并记住。");
+
+        var confirmMsg = new ChatMessage { Role = "assistant", Content = sbConfirm.ToString() };
+        await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => Messages.Add(confirmMsg));
+        await _history.SaveAsync(_sessionId, confirmMsg);
+
+        _pendingCandidates = candidates;
+        _pendingKeyword = query;
+        StatusText = "请输入编号确认打开";
+    }
+
+    private static List<string> GenerateSearchVariants(string query)
+    {
+        var variants = new List<string> { query };
+
+        // Lowercase variant
+        if (query != query.ToLowerInvariant())
+            variants.Add(query.ToLowerInvariant());
+
+        // Try without spaces/special chars
+        var cleaned = query.Replace(" ", "").Replace("-", "").Replace("_", "").Replace("《", "").Replace("》", "");
+        if (cleaned != query && cleaned.Length > 0)
+            variants.Add(cleaned);
+
+        // Try with spaces between Chinese/English boundary
+        var spaced = System.Text.RegularExpressions.Regex.Replace(query, @"([\u4e00-\u9fff])([a-zA-Z0-9])", "$1 $2");
+        if (spaced != query)
+            variants.Add(spaced);
+
+        // Try English-only part if mixed
+        var engPart = System.Text.RegularExpressions.Regex.Match(query, @"[a-zA-Z0-9]+");
+        if (engPart.Success && engPart.Value != query)
+            variants.Add(engPart.Value);
+
+        return variants;
     }
 
     private async Task HandleSearchWeb(string query)
