@@ -229,16 +229,36 @@ public partial class AmbientViewModel : ObservableObject, IDisposable
     private async Task HandleSearchFile(string query)
     {
         StatusText = "Searching files...";
-        var agentResult = await _agent.ExecuteAsync($"搜索{query}");
-        var agentMsg = new ChatMessage { Role = "assistant", Content = agentResult.Message };
-        await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => Messages.Add(agentMsg));
-        await _history.SaveAsync(_sessionId, agentMsg);
 
-        if (agentResult.NeedsConfirmation)
+        // Search using Everything SDK directly
+        var candidates = await _mapping.SearchExeAsync(query);
+
+        if (candidates.Count > 0)
         {
-            _pendingCandidates = agentResult.Candidates;
-            _pendingKeyword = agentResult.PendingKeyword;
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine($"找到 {candidates.Count} 个与 \"{query}\" 相关的文件：");
+            for (int i = 0; i < candidates.Count; i++)
+            {
+                var fileName = Path.GetFileName(candidates[i]);
+                var dir = Path.GetDirectoryName(candidates[i]) ?? "";
+                sb.AppendLine($"{i + 1}. {fileName}");
+                sb.AppendLine($"   位置: {dir}");
+            }
+            sb.AppendLine("请告诉我编号，我来打开。");
+
+            var agentMsg = new ChatMessage { Role = "assistant", Content = sb.ToString() };
+            await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => Messages.Add(agentMsg));
+            await _history.SaveAsync(_sessionId, agentMsg);
+
+            _pendingCandidates = candidates;
+            _pendingKeyword = query;
             StatusText = "请输入编号确认打开";
+        }
+        else
+        {
+            var agentMsg = new ChatMessage { Role = "assistant", Content = $"未找到与 \"{query}\" 相关的文件。" };
+            await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => Messages.Add(agentMsg));
+            await _history.SaveAsync(_sessionId, agentMsg);
         }
     }
 
