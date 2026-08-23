@@ -21,6 +21,7 @@ public partial class AmbientViewModel : ObservableObject, IDisposable
     private readonly ITavilySearchService _search;
     private readonly IOpenClawAgentService _agent;
     private readonly IAppMappingService _mapping;
+    private readonly IIntentAnalyzer _intent;
     private readonly string _sessionId = Guid.NewGuid().ToString("N");
 
     [ObservableProperty] private string _endpoint = "https://api.moonshot.cn/v1/chat/completions";
@@ -46,7 +47,8 @@ public partial class AmbientViewModel : ObservableObject, IDisposable
         IOpenClawManager claw,
         ITavilySearchService search,
         IOpenClawAgentService agent,
-        IAppMappingService mapping)
+        IAppMappingService mapping,
+        IIntentAnalyzer intent)
     {
         _speech = speech;
         _llm = llm;
@@ -55,6 +57,7 @@ public partial class AmbientViewModel : ObservableObject, IDisposable
         _search = search;
         _agent = agent;
         _mapping = mapping;
+        _intent = intent;
 
         _speech.SpeechRecognized += OnSpeechRecognized;
         _speech.SpeechEnded += OnSpeechEnded;
@@ -135,157 +138,213 @@ public partial class AmbientViewModel : ObservableObject, IDisposable
             await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => Messages.Add(userMsg));
             await _history.SaveAsync(_sessionId, userMsg);
 
-            // Check if web search is needed
-            string? searchContext = null;
-            if (NeedsWebSearch(text))
+            // Step 1: Check if user is confirming a candidate selection (special case)
+            if (_pendingCandidates != null)
             {
-                StatusText = "Searching web...";
-                searchContext = await _search.SearchAsync(text);
-                Log($"Search context length: {searchContext.Length}");
-            }
-
-            // Check if this is an agent request (open app, file operations, system commands)
-            if (NeedsAgent(text))
-            {
-                StatusText = "Executing...";
-                var agentResult = await _agent.ExecuteAsync(text);
-
-                var agentMsg = new ChatMessage { Role = "assistant", Content = agentResult.Message };
-                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => Messages.Add(agentMsg));
-                await _history.SaveAsync(_sessionId, agentMsg);
-
-                // If candidates found, enter confirmation mode
-                if (agentResult.NeedsConfirmation)
+                if (int.TryParse(text.Trim(), out var choice) && choice >= 1 && choice <= _pendingCandidates.Count)
                 {
-                    _pendingCandidates = agentResult.Candidates;
-                    _pendingKeyword = agentResult.PendingKeyword;
-                    StatusText = "请输入编号确认打开";
+                    var selectedPath = _pendingCandidates[choice - 1];
+                    await _agent.OpenAppAsync(selectedPath);
+                    if (_pendingKeyword != null)
+                    {
+                        await _mapping.SaveMappingAsync(_pendingKeyword, selectedPath);
+                        Log($"Saved mapping: {_pendingKeyword} -> {selectedPath}");
+                    }
+                    var confirmMsg = new ChatMessage { Role = "assistant", Content = $"已打开并记住：{_pendingKeyword} → {Path.GetFileName(selectedPath)}" };
+                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => Messages.Add(confirmMsg));
+                    await _history.SaveAsync(_sessionId, confirmMsg);
+                }
+                else if (text.Contains("取消") || text.Contains("cancel"))
+                {
+                    var cancelMsg = new ChatMessage { Role = "assistant", Content = "已取消。" };
+                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => Messages.Add(cancelMsg));
                 }
                 else
                 {
-                    _pendingCandidates = null;
-                    _pendingKeyword = null;
+                    var errMsg = new ChatMessage { Role = "assistant", Content = $"请输入有效编号（1-{_pendingCandidates.Count}）或\"取消\"。" };
+                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => Messages.Add(errMsg));
                 }
-
-                IsProcessing = false;
-                IsListening = true;
-                Log("Agent request completed");
-                return;
-            }
-
-            // Check if user is confirming a candidate selection
-            if (_pendingCandidates != null && int.TryParse(text.Trim(), out var choice)
-                && choice >= 1 && choice <= _pendingCandidates.Count)
-            {
-                var selectedPath = _pendingCandidates[choice - 1];
-                await _agent.OpenAppAsync(selectedPath);
-
-                // Save to database
-                if (_pendingKeyword != null)
-                {
-                    await _mapping.SaveMappingAsync(_pendingKeyword, selectedPath);
-                    Log($"Saved mapping: {_pendingKeyword} -> {selectedPath}");
-                }
-
-                var confirmMsg = new ChatMessage { Role = "assistant", Content = $"已打开并记住：{_pendingKeyword} → {Path.GetFileName(selectedPath)}" };
-                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => Messages.Add(confirmMsg));
-                await _history.SaveAsync(_sessionId, confirmMsg);
-
                 _pendingCandidates = null;
                 _pendingKeyword = null;
                 IsProcessing = false;
                 IsListening = true;
-                StatusText = "Listening...";
-                return;
-            }
-            else if (_pendingCandidates != null)
-            {
-                // Invalid selection
-                var errMsg = new ChatMessage { Role = "assistant", Content = "请输入有效的编号（1-" + _pendingCandidates.Count + "），或说\"取消\"放弃。" };
-                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => Messages.Add(errMsg));
-
-                if (text.Contains("取消") || text.Contains("cancel"))
-                {
-                    _pendingCandidates = null;
-                    _pendingKeyword = null;
-                }
-                IsProcessing = false;
-                IsListening = true;
                 return;
             }
 
-            IsListening = false;
-            IsProcessing = true;
-            StatusText = "Processing...";
+            // Step 2: AI analyzes intent
+            StatusText = "Understanding...";
+            var historyText = string.Join("\n", Messages.TakeLast(10).Select(m => $"{m.Role}: {m.Content}"));
+            var intent = await _intent.AnalyzeAsync(text, historyText);
+            Log($"Intent: {intent.Intent}, query: '{intent.Query}'");
 
-            // Add placeholder AI message
-            var aiMsg = new ChatMessage { Role = "assistant", Content = "..." };
-            await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => Messages.Add(aiMsg));
-
-            // Build effective text with search context
-            var effectiveText = searchContext != null
-                ? $"[联网搜索结果]\n{searchContext}\n\n[用户问题] {text}"
-                : text;
-
-            // Accumulate response locally, update UI periodically
-            var fullResponse = new System.Text.StringBuilder();
-            int updateCounter = 0;
-
-            await foreach (var chunk in _llm.StreamChatAsync(Messages, effectiveText, Endpoint, Model, ApiKey))
+            // Step 3: Route based on AI intent
+            switch (intent.Intent)
             {
-                fullResponse.Append(chunk);
-                updateCounter++;
+                case "open_app":
+                    await HandleOpenApp(intent.Query);
+                    break;
 
-                // Update UI every 5 chunks by replacing message object
-                if (updateCounter % 5 == 0)
-                {
-                    var snapshot = fullResponse.ToString();
-                    var msgId = aiMsg.Id;
-                    var msgTs = aiMsg.Timestamp;
-                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
-                    {
-                        for (int i = Messages.Count - 1; i >= 0; i--)
-                        {
-                            if (Messages[i].Id == msgId)
-                            {
-                                Messages[i] = new ChatMessage { Id = msgId, Role = "assistant", Content = snapshot, Timestamp = msgTs };
-                                break;
-                            }
-                        }
-                    });
-                }
+                case "search_file":
+                    await HandleSearchFile(intent.Query);
+                    break;
+
+                case "search_web":
+                    await HandleSearchWeb(intent.Query);
+                    break;
+
+                case "chat":
+                default:
+                    await HandleChat(text, intent.Reply);
+                    break;
             }
-
-            // Final update
-            var finalText = fullResponse.ToString();
-            var finalId = aiMsg.Id;
-            var finalTs = aiMsg.Timestamp;
-            await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
-            {
-                for (int i = Messages.Count - 1; i >= 0; i--)
-                {
-                    if (Messages[i].Id == finalId)
-                    {
-                        Messages[i] = new ChatMessage { Id = finalId, Role = "assistant", Content = finalText, Timestamp = finalTs };
-                        break;
-                    }
-                }
-            });
-            Log($"LLM final response length: {finalText.Length}");
-
-            // Save to history
-            var savedMsg = new ChatMessage { Id = aiMsg.Id, Role = "assistant", Content = aiMsg.Content, Timestamp = aiMsg.Timestamp };
-            await _history.SaveAsync(_sessionId, savedMsg);
-            Log("LLM response complete");
         }
         catch (Exception ex)
         {
-            Log($"LLM ERROR: {ex}");
+            Log($"ProcessUserInput ERROR: {ex}");
+            var errMsg = new ChatMessage { Role = "assistant", Content = $"出错了: {ex.Message}" };
+            await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => Messages.Add(errMsg));
         }
 
         IsProcessing = false;
         IsListening = true;
         StatusText = "Listening...";
+    }
+
+    private async Task HandleOpenApp(string query)
+    {
+        StatusText = "Executing...";
+        var agentResult = await _agent.ExecuteAsync($"打开{query}");
+        var agentMsg = new ChatMessage { Role = "assistant", Content = agentResult.Message };
+        await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => Messages.Add(agentMsg));
+        await _history.SaveAsync(_sessionId, agentMsg);
+
+        if (agentResult.NeedsConfirmation)
+        {
+            _pendingCandidates = agentResult.Candidates;
+            _pendingKeyword = agentResult.PendingKeyword;
+            StatusText = "请输入编号确认打开";
+        }
+    }
+
+    private async Task HandleSearchFile(string query)
+    {
+        StatusText = "Searching files...";
+        var agentResult = await _agent.ExecuteAsync($"搜索{query}");
+        var agentMsg = new ChatMessage { Role = "assistant", Content = agentResult.Message };
+        await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => Messages.Add(agentMsg));
+        await _history.SaveAsync(_sessionId, agentMsg);
+
+        if (agentResult.NeedsConfirmation)
+        {
+            _pendingCandidates = agentResult.Candidates;
+            _pendingKeyword = agentResult.PendingKeyword;
+            StatusText = "请输入编号确认打开";
+        }
+    }
+
+    private async Task HandleSearchWeb(string query)
+    {
+        StatusText = "Searching web...";
+        var searchContext = await _search.SearchAsync(query);
+
+        // Send to LLM with search context
+        var aiMsg = new ChatMessage { Role = "assistant", Content = "..." };
+        await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => Messages.Add(aiMsg));
+
+        var effectiveText = $"[联网搜索结果]\n{searchContext}\n\n[用户问题] {query}";
+        var fullResponse = new System.Text.StringBuilder();
+        int updateCounter = 0;
+
+        await foreach (var chunk in _llm.StreamChatAsync(Messages, effectiveText, Endpoint, Model, ApiKey))
+        {
+            fullResponse.Append(chunk);
+            updateCounter++;
+            if (updateCounter % 5 == 0)
+            {
+                var snapshot = fullResponse.ToString();
+                var msgId = aiMsg.Id;
+                var msgTs = aiMsg.Timestamp;
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    for (int i = Messages.Count - 1; i >= 0; i--)
+                    {
+                        if (Messages[i].Id == msgId)
+                        {
+                            Messages[i] = new ChatMessage { Id = msgId, Role = "assistant", Content = snapshot, Timestamp = msgTs };
+                            break;
+                        }
+                    }
+                });
+            }
+        }
+
+        var finalText = fullResponse.ToString();
+        var finalId = aiMsg.Id;
+        var finalTs = aiMsg.Timestamp;
+        await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+        {
+            for (int i = Messages.Count - 1; i >= 0; i--)
+            {
+                if (Messages[i].Id == finalId)
+                {
+                    Messages[i] = new ChatMessage { Id = finalId, Role = "assistant", Content = finalText, Timestamp = finalTs };
+                    break;
+                }
+            }
+        });
+        await _history.SaveAsync(_sessionId, new ChatMessage { Id = aiMsg.Id, Role = "assistant", Content = finalText, Timestamp = finalTs });
+    }
+
+    private async Task HandleChat(string text, string? aiReply)
+    {
+        IsListening = false;
+        IsProcessing = true;
+        StatusText = "Processing...";
+
+        var aiMsg = new ChatMessage { Role = "assistant", Content = "..." };
+        await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => Messages.Add(aiMsg));
+
+        var fullResponse = new System.Text.StringBuilder();
+        int updateCounter = 0;
+
+        await foreach (var chunk in _llm.StreamChatAsync(Messages, text, Endpoint, Model, ApiKey))
+        {
+            fullResponse.Append(chunk);
+            updateCounter++;
+            if (updateCounter % 5 == 0)
+            {
+                var snapshot = fullResponse.ToString();
+                var msgId = aiMsg.Id;
+                var msgTs = aiMsg.Timestamp;
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    for (int i = Messages.Count - 1; i >= 0; i--)
+                    {
+                        if (Messages[i].Id == msgId)
+                        {
+                            Messages[i] = new ChatMessage { Id = msgId, Role = "assistant", Content = snapshot, Timestamp = msgTs };
+                            break;
+                        }
+                    }
+                });
+            }
+        }
+
+        var finalText = fullResponse.ToString();
+        var finalId = aiMsg.Id;
+        var finalTs = aiMsg.Timestamp;
+        await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+        {
+            for (int i = Messages.Count - 1; i >= 0; i--)
+            {
+                if (Messages[i].Id == finalId)
+                {
+                    Messages[i] = new ChatMessage { Id = finalId, Role = "assistant", Content = finalText, Timestamp = finalTs };
+                    break;
+                }
+            }
+        });
+        await _history.SaveAsync(_sessionId, new ChatMessage { Id = aiMsg.Id, Role = "assistant", Content = finalText, Timestamp = finalTs });
     }
 
     private static bool NeedsWebSearch(string text)

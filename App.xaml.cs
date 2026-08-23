@@ -45,6 +45,7 @@ public partial class App : Application
             sc.AddSingleton<IOpenClawAgentService, OpenClawAgentService>();
             sc.AddSingleton<IAppMappingService, AppMappingService>();
             sc.AddSingleton<IEverythingService, EverythingService>();
+            sc.AddSingleton<IIntentAnalyzer, IntentAnalyzer>();
             sc.AddSingleton<AmbientViewModel>();
             _services = sc.BuildServiceProvider();
             Log("DI container built");
