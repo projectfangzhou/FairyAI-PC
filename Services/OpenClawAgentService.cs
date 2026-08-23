@@ -81,9 +81,12 @@ public class OpenClawAgentService : IOpenClawAgentService
 
         // 2. Check learned database
         var keyword = ExtractKeyword(request);
+        Log($"Extracted keyword: '{keyword ?? "null"}'");
+
         if (keyword != null)
         {
             var savedPath = await _mapping.FindAppAsync(keyword);
+            Log($"DB lookup for '{keyword}': {savedPath ?? "not found"}");
             if (savedPath != null && (File.Exists(savedPath) || savedPath.Contains(':')))
             {
                 try
@@ -98,7 +101,9 @@ public class OpenClawAgentService : IOpenClawAgentService
         // 3. Search for unknown app
         if (keyword != null)
         {
+            Log($"Searching for exe: '{keyword}'");
             var candidates = await _mapping.SearchExeAsync(keyword);
+            Log($"Found {candidates.Count} candidates");
             if (candidates.Count > 0)
             {
                 var sb = new StringBuilder();

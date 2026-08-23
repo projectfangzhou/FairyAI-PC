@@ -1,100 +1,50 @@
 using System.Diagnostics;
 using System.IO;
-using System.Runtime.InteropServices;
-using System.Text;
 
 namespace MyAiAssistant.Services;
 
 public class EverythingService : IEverythingService
 {
-    private const string DllName = "Everything64.dll";
-
-    #region P/Invoke
-
-    [DllImport(DllName, CharSet = CharSet.Unicode)]
-    private static extern void Everything_SetSearchW(string lpString);
-
-    [DllImport(DllName)]
-    private static extern void Everything_SetRequestFlags(uint dwRequestFlags);
-
-    [DllImport(DllName)]
-    private static extern void Everything_SetMax(uint dwMax);
-
-    [DllImport(DllName)]
-    private static extern bool Everything_QueryW(bool bWait);
-
-    [DllImport(DllName)]
-    private static extern uint Everything_GetNumResults();
-
-    [DllImport(DllName, CharSet = CharSet.Unicode)]
-    private static extern void Everything_GetResultFullPathNameW(uint nIndex, StringBuilder lpString, uint nMaxCount);
-
-    [DllImport(DllName)]
-    private static extern bool Everything_IsDBLoaded();
-
-    [DllImport(DllName)]
-    private static extern uint Everything_GetLastError();
-
-    private const uint EVERYTHING_REQUEST_FULL_PATH_AND_FILE_NAME = 0x00000004;
-
-    #endregion
-
     private static readonly string LogPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "fairy.log");
+    private static readonly string EsExePath = @"D:\Dev\Everything\SDK\es.exe";
 
-    public bool IsAvailable
-    {
-        get
-        {
-            try
-            {
-                return Everything_IsDBLoaded();
-            }
-            catch
-            {
-                return false;
-            }
-        }
-    }
+    public bool IsAvailable => File.Exists(EsExePath);
 
     public List<string> SearchFiles(string query, int maxResults = 10)
     {
         var results = new List<string>();
-        if (string.IsNullOrWhiteSpace(query)) return results;
+        if (!IsAvailable || string.IsNullOrWhiteSpace(query)) return results;
 
-        lock (this)
+        try
         {
-            try
+            var psi = new ProcessStartInfo
             {
-                Everything_SetSearchW(query);
-                Everything_SetRequestFlags(EVERYTHING_REQUEST_FULL_PATH_AND_FILE_NAME);
-                Everything_SetMax((uint)maxResults);
+                FileName = EsExePath,
+                Arguments = $"\"{query}\" -max-results {maxResults}",
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true
+            };
 
-                if (!Everything_QueryW(true))
-                {
-                    Log($"Everything query failed: error {Everything_GetLastError()}");
-                    return results;
-                }
+            using var process = Process.Start(psi);
+            if (process == null) return results;
 
-                uint numResults = Everything_GetNumResults();
-                var buffer = new StringBuilder(260);
+            var output = process.StandardOutput.ReadToEnd();
+            process.WaitForExit(5000);
 
-                for (uint i = 0; i < numResults; i++)
-                {
-                    buffer.Clear();
-                    Everything_GetResultFullPathNameW(i, buffer, (uint)buffer.Capacity);
-                    results.Add(buffer.ToString());
-                }
-
-                Log($"Everything search '{query}': {results.Count} results");
-            }
-            catch (DllNotFoundException)
+            foreach (var line in output.Split('\n', StringSplitOptions.RemoveEmptyEntries))
             {
-                Log("Everything64.dll not found");
+                var trimmed = line.Trim();
+                if (!string.IsNullOrEmpty(trimmed) && File.Exists(trimmed))
+                    results.Add(trimmed);
             }
-            catch (Exception ex)
-            {
-                Log($"Everything error: {ex.Message}");
-            }
+
+            Log($"Everything search '{query}': {results.Count} results");
+        }
+        catch (Exception ex)
+        {
+            Log($"Everything error: {ex.Message}");
         }
 
         return results;
