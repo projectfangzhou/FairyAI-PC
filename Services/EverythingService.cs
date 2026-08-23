@@ -17,6 +17,8 @@ public class EverythingService : IEverythingService
 
         try
         {
+            Log($"Everything: searching '{query}'");
+
             var psi = new ProcessStartInfo
             {
                 FileName = EsExePath,
@@ -24,23 +26,28 @@ public class EverythingService : IEverythingService
                 UseShellExecute = false,
                 CreateNoWindow = true,
                 RedirectStandardOutput = true,
-                RedirectStandardError = true
+                RedirectStandardError = true,
+                WorkingDirectory = Path.GetDirectoryName(EsExePath) ?? ""
             };
 
             using var process = Process.Start(psi);
-            if (process == null) return results;
+            if (process == null) { Log("Everything: process is null"); return results; }
 
             var output = process.StandardOutput.ReadToEnd();
+            var error = process.StandardError.ReadToEnd();
             process.WaitForExit(5000);
+
+            Log($"Everything: exit={process.ExitCode}, output_len={output.Length}");
 
             foreach (var line in output.Split('\n', StringSplitOptions.RemoveEmptyEntries))
             {
                 var trimmed = line.Trim();
-                if (!string.IsNullOrEmpty(trimmed) && File.Exists(trimmed))
+                if (!string.IsNullOrEmpty(trimmed))
+                {
                     results.Add(trimmed);
+                    Log($"Everything: found '{trimmed}'");
+                }
             }
-
-            Log($"Everything search '{query}': {results.Count} results");
         }
         catch (Exception ex)
         {

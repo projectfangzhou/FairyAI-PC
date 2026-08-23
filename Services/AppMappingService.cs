@@ -62,18 +62,14 @@ public class AppMappingService : IAppMappingService
 
         if (_everything.IsAvailable)
         {
-            // Use Everything SDK for full disk search (no ext filter - es.exe doesn't support it)
+            // Use Everything SDK for full disk search
             var allResults = _everything.SearchFiles(keyword, 20);
 
-            // Filter to only .exe and .bat files
+            // Return all results (user can pick any file to open)
             foreach (var file in allResults)
             {
-                var ext = Path.GetExtension(file).ToLowerInvariant();
-                if (ext is ".exe" or ".bat")
-                {
-                    results.Add(file);
-                    if (results.Count >= 5) break;
-                }
+                results.Add(file);
+                if (results.Count >= 8) break;
             }
 
             return Task.FromResult(results);
