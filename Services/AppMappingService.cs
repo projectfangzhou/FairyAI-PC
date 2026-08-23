@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.IO;
 using Microsoft.Data.Sqlite;
 
@@ -7,22 +6,12 @@ namespace MyAiAssistant.Services;
 public class AppMappingService : IAppMappingService
 {
     private readonly string _connStr;
+    private readonly IEverythingService _everything;
     private const string DbFile = "app_mappings.db";
 
-    // Common search paths
-    private static readonly string[] SearchPaths =
-    [
-        Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
-        Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), @"Microsoft\WindowsApps"),
-        @"C:\Users\l1763\AppData\Local\Microsoft\WindowsApps",
-        @"C:\Users\l1763\AppData\Roaming",
-        @"C:\Users\l1763\Desktop",
-        @"D:\",
-    ];
-
-    public AppMappingService()
+    public AppMappingService(IEverythingService everything)
     {
+        _everything = everything;
         var path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, DbFile);
         _connStr = $"Data Source={path}";
     }
@@ -70,15 +59,52 @@ public class AppMappingService : IAppMappingService
     public Task<List<string>> SearchExeAsync(string keyword)
     {
         var results = new List<string>();
+
+        if (_everything.IsAvailable)
+        {
+            // Use Everything SDK for full disk search
+            var query = $"{keyword} ext:exe|bat";
+            var allResults = _everything.SearchFiles(query, 10);
+
+            // Filter to only .exe and .bat files
+            foreach (var file in allResults)
+            {
+                var ext = Path.GetExtension(file).ToLowerInvariant();
+                if (ext is ".exe" or ".bat")
+                {
+                    results.Add(file);
+                    if (results.Count >= 5) break;
+                }
+            }
+
+            return Task.FromResult(results);
+        }
+
+        // Fallback: search common directories
+        return SearchFallbackAsync(keyword);
+    }
+
+    private static Task<List<string>> SearchFallbackAsync(string keyword)
+    {
+        var results = new List<string>();
         var searchName = keyword.ToLowerInvariant();
 
-        foreach (var basePath in SearchPaths)
+        string[] searchPaths =
+        [
+            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), @"Microsoft\WindowsApps"),
+            @"C:\Users\l1763\AppData\Local\Microsoft\WindowsApps",
+            @"C:\Users\l1763\AppData\Roaming",
+            @"D:\",
+        ];
+
+        foreach (var basePath in searchPaths)
         {
             if (!Directory.Exists(basePath)) continue;
 
             try
             {
-                // Search for .exe and .bat files
                 var files = Directory.EnumerateFiles(basePath, "*.exe", SearchOption.AllDirectories)
                     .Concat(Directory.EnumerateFiles(basePath, "*.bat", SearchOption.AllDirectories));
 
@@ -92,7 +118,7 @@ public class AppMappingService : IAppMappingService
                     }
                 }
             }
-            catch { /* skip inaccessible directories */ }
+            catch { }
         }
 
         return Task.FromResult(results);
