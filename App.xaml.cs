@@ -37,7 +37,8 @@ public partial class App : Application
         try
         {
             var sc = new ServiceCollection();
-            sc.AddSingleton<IContinuousSpeechService, ContinuousSpeechService>();
+            sc.AddSingleton<IMiMoAsrService, MiMoAsrService>();
+            sc.AddSingleton<IContinuousSpeechService, HybridSpeechService>();
             sc.AddSingleton<ILlmService, LlmService>();
             sc.AddSingleton<IChatHistoryService, ChatHistoryService>();
             sc.AddSingleton<IOpenClawManager, OpenClawManager>();
