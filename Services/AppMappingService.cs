@@ -62,9 +62,8 @@ public class AppMappingService : IAppMappingService
 
         if (_everything.IsAvailable)
         {
-            // Use Everything SDK for full disk search
-            var query = $"{keyword} ext:exe|bat";
-            var allResults = _everything.SearchFiles(query, 10);
+            // Use Everything SDK for full disk search (no ext filter - es.exe doesn't support it)
+            var allResults = _everything.SearchFiles(keyword, 20);
 
             // Filter to only .exe and .bat files
             foreach (var file in allResults)
