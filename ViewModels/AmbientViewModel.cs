@@ -463,6 +463,7 @@ public partial class AmbientViewModel : ObservableObject, IDisposable
     {
         try
         {
+            Log($"SpeakResponse: input length={text.Length}");
             // Clean markdown for TTS
             var cleanText = text
                 .Replace("**", "")
@@ -472,13 +473,16 @@ public partial class AmbientViewModel : ObservableObject, IDisposable
                 .Replace("\n", " ")
                 .Trim();
 
+            Log($"SpeakResponse: clean text length={cleanText.Length}");
             if (cleanText.Length > 0)
             {
                 StatusText = "Speaking...";
                 var audio = await _tts.SynthesizeAsync(cleanText);
+                Log($"SpeakResponse: audio length={audio.Length}");
                 if (audio.Length > 0)
                 {
                     await _audioPlayer.PlayAsync(audio);
+                    Log("SpeakResponse: playing audio");
                 }
             }
         }

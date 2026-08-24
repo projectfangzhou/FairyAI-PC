@@ -14,8 +14,11 @@ public class AudioPlayerService : IAudioPlayerService
 
         try
         {
+            // Stop any currently playing audio first
+            Stop();
+
             // Save to temp WAV file and play
-            var tempFile = Path.Combine(Path.GetTempPath(), $"fairy_tts_{Guid.NewGuid():N}.wav");
+            var tempFile = Path.Combine(Path.GetTempPath(), $"fairy_tts_play_{Guid.NewGuid():N}.wav");
             File.WriteAllBytes(tempFile, audioData);
 
             _player = new SoundPlayer(tempFile);

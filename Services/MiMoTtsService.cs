@@ -139,11 +139,16 @@ public class MiMoTtsService : IMiMoTtsService
     {
         try
         {
+            var tempFile = Path.Combine(Path.GetTempPath(), $"fairy_tts_{Guid.NewGuid():N}.wav");
             var synth = new SpeechSynthesizer();
-            synth.SetOutputToWaveFile(Path.Combine(Path.GetTempPath(), "fairy_tts_system.wav"));
+            synth.SetOutputToWaveFile(tempFile);
             synth.Speak(text);
 
-            var audioBytes = File.ReadAllBytes(Path.Combine(Path.GetTempPath(), "fairy_tts_system.wav"));
+            var audioBytes = File.ReadAllBytes(tempFile);
+
+            // Cleanup temp file after reading
+            try { File.Delete(tempFile); } catch { }
+
             Log($"TTS system: generated {audioBytes.Length} bytes");
             return Task.FromResult(audioBytes);
         }
