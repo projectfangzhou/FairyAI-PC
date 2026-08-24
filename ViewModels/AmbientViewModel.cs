@@ -22,6 +22,8 @@ public partial class AmbientViewModel : ObservableObject, IDisposable
     private readonly IOpenClawAgentService _agent;
     private readonly IAppMappingService _mapping;
     private readonly IIntentAnalyzer _intent;
+    private readonly IMiMoTtsService _tts;
+    private readonly IAudioPlayerService _audioPlayer;
     private readonly string _sessionId = Guid.NewGuid().ToString("N");
 
     [ObservableProperty] private string _endpoint = "https://api.moonshot.cn/v1/chat/completions";
@@ -48,7 +50,9 @@ public partial class AmbientViewModel : ObservableObject, IDisposable
         ITavilySearchService search,
         IOpenClawAgentService agent,
         IAppMappingService mapping,
-        IIntentAnalyzer intent)
+        IIntentAnalyzer intent,
+        IMiMoTtsService tts,
+        IAudioPlayerService audioPlayer)
     {
         _speech = speech;
         _llm = llm;
@@ -58,6 +62,8 @@ public partial class AmbientViewModel : ObservableObject, IDisposable
         _agent = agent;
         _mapping = mapping;
         _intent = intent;
+        _tts = tts;
+        _audioPlayer = audioPlayer;
 
         _speech.SpeechRecognized += OnSpeechRecognized;
         _speech.SpeechEnded += OnSpeechEnded;
@@ -448,6 +454,38 @@ public partial class AmbientViewModel : ObservableObject, IDisposable
             }
         });
         await _history.SaveAsync(_sessionId, new ChatMessage { Id = aiMsg.Id, Role = "assistant", Content = finalText, Timestamp = finalTs });
+
+        // TTS: speak the response
+        await SpeakResponseAsync(finalText);
+    }
+
+    private async Task SpeakResponseAsync(string text)
+    {
+        try
+        {
+            // Clean markdown for TTS
+            var cleanText = text
+                .Replace("**", "")
+                .Replace("*", "")
+                .Replace("`", "")
+                .Replace("#", "")
+                .Replace("\n", " ")
+                .Trim();
+
+            if (cleanText.Length > 0)
+            {
+                StatusText = "Speaking...";
+                var audio = await _tts.SynthesizeAsync(cleanText);
+                if (audio.Length > 0)
+                {
+                    await _audioPlayer.PlayAsync(audio);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Log($"TTS error: {ex.Message}");
+        }
     }
 
     private static bool NeedsWebSearch(string text)

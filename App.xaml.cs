@@ -47,6 +47,8 @@ public partial class App : Application
             sc.AddSingleton<IAppMappingService, AppMappingService>();
             sc.AddSingleton<IEverythingService, EverythingService>();
             sc.AddSingleton<IIntentAnalyzer, IntentAnalyzer>();
+            sc.AddSingleton<IMiMoTtsService, MiMoTtsService>();
+            sc.AddSingleton<IAudioPlayerService, AudioPlayerService>();
             sc.AddSingleton<AmbientViewModel>();
             _services = sc.BuildServiceProvider();
             Log("DI container built");
