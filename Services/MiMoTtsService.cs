@@ -1,6 +1,7 @@
 using System.IO;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Speech.Synthesis;
 using System.Text;
 using System.Text.Json;
 
@@ -32,10 +33,6 @@ public class MiMoTtsService : IMiMoTtsService
                 _voiceSampleBase64 = Convert.ToBase64String(bytes);
                 Log($"TTS: voice sample loaded ({bytes.Length} bytes)");
             }
-            else
-            {
-                Log($"TTS: voice sample not found at {VoiceSamplePath}");
-            }
         }
         catch (Exception ex)
         {
@@ -46,47 +43,36 @@ public class MiMoTtsService : IMiMoTtsService
     public async Task<byte[]> SynthesizeAsync(string text)
     {
         if (string.IsNullOrWhiteSpace(text)) return Array.Empty<byte>();
-        if (_voiceSampleBase64 == null)
-        {
-            Log("TTS: no voice sample available");
-            return Array.Empty<byte>();
-        }
 
-        Log($"TTS: synthesizing '{text[..Math.Min(50, text.Length)]}...'");
+        // Try MiMo TTS API first
+        var result = await TryMiMoTtsAsync(text);
+        if (result.Length > 0) return result;
+
+        // Fallback to system TTS
+        Log("TTS: MiMo failed, using system TTS fallback");
+        return await SystemTtsFallbackAsync(text);
+    }
+
+    private async Task<byte[]> TryMiMoTtsAsync(string text)
+    {
+        if (_voiceSampleBase64 == null) return Array.Empty<byte>();
+
+        Log($"TTS: trying MiMo API for '{text[..Math.Min(30, text.Length)]}...'");
 
         try
         {
-            // Build request: user message contains the voice clone audio, assistant message contains text to speak
+            var voiceDataUrl = $"data:audio/wav;base64,{_voiceSampleBase64}";
+
             var messages = new object[]
             {
-                new
-                {
-                    role = "user",
-                    content = new object[]
-                    {
-                        new
-                        {
-                            type = "input_audio",
-                            input_audio = new
-                            {
-                                data = _voiceSampleBase64,
-                                format = "wav"
-                            }
-                        }
-                    }
-                },
-                new
-                {
-                    role = "assistant",
-                    content = text
-                }
+                new { role = "user", content = voiceDataUrl },
+                new { role = "assistant", content = text }
             };
 
             var payload = JsonSerializer.Serialize(new
             {
                 model = Model,
-                messages,
-                stream = false
+                messages
             });
 
             using var req = new HttpRequestMessage(HttpMethod.Post, Endpoint)
@@ -99,39 +85,16 @@ public class MiMoTtsService : IMiMoTtsService
 
             if (!resp.IsSuccessStatusCode)
             {
-                var error = await resp.Content.ReadAsStringAsync();
-                Log($"TTS error {resp.StatusCode}: {error}");
+                Log($"TTS MiMo error: {resp.StatusCode}");
                 return Array.Empty<byte>();
             }
 
             var body = await resp.Content.ReadAsStringAsync();
-            Log($"TTS response length: {body.Length}");
-
-            // Parse response to extract audio data
             using var doc = JsonDocument.Parse(body);
 
             if (doc.RootElement.TryGetProperty("choices", out var choices) && choices.GetArrayLength() > 0)
             {
                 var choice = choices[0];
-                if (choice.TryGetProperty("message", out var message) &&
-                    message.TryGetProperty("content", out var content))
-                {
-                    // Check if content contains audio data (base64)
-                    var contentStr = content.GetString();
-                    if (!string.IsNullOrEmpty(contentStr) && contentStr.Length > 100)
-                    {
-                        // Might be base64 audio
-                        try
-                        {
-                            var audioBytes = Convert.FromBase64String(contentStr);
-                            Log($"TTS: audio decoded ({audioBytes.Length} bytes)");
-                            return audioBytes;
-                        }
-                        catch { }
-                    }
-                }
-
-                // Check for audio field in response
                 if (choice.TryGetProperty("audio", out var audio) &&
                     audio.TryGetProperty("data", out var audioData))
                 {
@@ -139,19 +102,55 @@ public class MiMoTtsService : IMiMoTtsService
                     if (!string.IsNullOrEmpty(audioStr))
                     {
                         var audioBytes = Convert.FromBase64String(audioStr);
-                        Log($"TTS: audio from 'audio.data' ({audioBytes.Length} bytes)");
+                        Log($"TTS MiMo: audio decoded ({audioBytes.Length} bytes)");
                         return audioBytes;
+                    }
+                }
+
+                // Check message content for audio
+                if (choice.TryGetProperty("message", out var message) &&
+                    message.TryGetProperty("content", out var content))
+                {
+                    var contentStr = content.GetString();
+                    if (!string.IsNullOrEmpty(contentStr) && contentStr.Length > 200)
+                    {
+                        try
+                        {
+                            var audioBytes = Convert.FromBase64String(contentStr);
+                            Log($"TTS MiMo: audio from content ({audioBytes.Length} bytes)");
+                            return audioBytes;
+                        }
+                        catch { }
                     }
                 }
             }
 
-            Log("TTS: no audio data found in response");
+            Log("TTS MiMo: no audio in response");
             return Array.Empty<byte>();
         }
         catch (Exception ex)
         {
-            Log($"TTS exception: {ex.Message}");
+            Log($"TTS MiMo exception: {ex.Message}");
             return Array.Empty<byte>();
+        }
+    }
+
+    private Task<byte[]> SystemTtsFallbackAsync(string text)
+    {
+        try
+        {
+            var synth = new SpeechSynthesizer();
+            synth.SetOutputToWaveFile(Path.Combine(Path.GetTempPath(), "fairy_tts_system.wav"));
+            synth.Speak(text);
+
+            var audioBytes = File.ReadAllBytes(Path.Combine(Path.GetTempPath(), "fairy_tts_system.wav"));
+            Log($"TTS system: generated {audioBytes.Length} bytes");
+            return Task.FromResult(audioBytes);
+        }
+        catch (Exception ex)
+        {
+            Log($"TTS system fallback error: {ex.Message}");
+            return Task.FromResult(Array.Empty<byte>());
         }
     }
 
