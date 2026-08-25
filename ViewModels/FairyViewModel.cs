@@ -92,7 +92,7 @@ public partial class FairyViewModel : ObservableObject, IDisposable
         IsListening = true;
         StatusText = "正在聆听...";
 
-        _orb?.PulseGlow();
+        _orb?.SetActive(true);
         _island?.ShowIsland();
         _island?.ShowWaveform();
         _island?.SetStatus("正在聆听...");
@@ -107,7 +107,7 @@ public partial class FairyViewModel : ObservableObject, IDisposable
         IsProcessing = false;
         StatusText = "点击开始对话";
 
-        _orb?.StopPulse();
+        _orb?.SetActive(false);
         _island?.HideIsland();
 
         _speech.StopListening();

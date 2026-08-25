@@ -25,7 +25,24 @@ public partial class FloatingOrbWindow : Window
 
     private void OnOrbClicked(object sender, MouseButtonEventArgs e)
     {
+        e.Handled = true; // Prevent event bubbling
         OrbClicked?.Invoke();
+    }
+
+    public void SetActive(bool active)
+    {
+        if (active)
+        {
+            ActiveDot.Visibility = Visibility.Visible;
+            InactiveDot.Visibility = Visibility.Collapsed;
+            PulseGlow();
+        }
+        else
+        {
+            ActiveDot.Visibility = Visibility.Collapsed;
+            InactiveDot.Visibility = Visibility.Visible;
+            StopPulse();
+        }
     }
 
     private void OnMouseEnter(object sender, MouseEventArgs e)

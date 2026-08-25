@@ -11,10 +11,9 @@
         Width="48" Height="48"
         Top="8"
         Cursor="Hand"
-        MouseLeftButtonDown="OnOrbClicked"
         Loaded="OnLoaded">
 
-    <Grid>
+    <Grid MouseLeftButtonDown="OnOrbClicked">
         <!-- Outer glow ring -->
         <Ellipse Width="44" Height="44" HorizontalAlignment="Center" VerticalAlignment="Center">
             <Ellipse.Fill>
@@ -29,8 +28,7 @@
         </Ellipse>
 
         <!-- Core orb -->
-        <Ellipse Width="32" Height="32" HorizontalAlignment="Center" VerticalAlignment="Center"
-                 Cursor="Hand" MouseLeftButtonDown="OnOrbClicked">
+        <Ellipse Width="32" Height="32" HorizontalAlignment="Center" VerticalAlignment="Center">
             <Ellipse.Fill>
                 <RadialGradientBrush>
                     <GradientStop Color="#bb7b68ee" Offset="0"/>
@@ -38,13 +36,20 @@
                     <GradientStop Color="#001a1a2e" Offset="1"/>
                 </RadialGradientBrush>
             </Ellipse.Fill>
+        </Ellipse>
+
+        <!-- Green active dot (shown when island is open) -->
+        <Ellipse x:Name="ActiveDot" Width="8" Height="8"
+                 HorizontalAlignment="Center" VerticalAlignment="Center"
+                 Fill="#40e0d0" Visibility="Collapsed">
             <Ellipse.Effect>
-                <BlurEffect Radius="2"/>
+                <DropShadowEffect Color="#40e0d0" BlurRadius="6" ShadowDepth="0" Opacity="0.8"/>
             </Ellipse.Effect>
         </Ellipse>
 
-        <!-- Center dot -->
-        <Ellipse Width="6" Height="6" HorizontalAlignment="Center" VerticalAlignment="Center"
+        <!-- Center dot (shown when inactive) -->
+        <Ellipse x:Name="InactiveDot" Width="6" Height="6"
+                 HorizontalAlignment="Center" VerticalAlignment="Center"
                  Fill="#ddbbccff"/>
     </Grid>
 </Window>
