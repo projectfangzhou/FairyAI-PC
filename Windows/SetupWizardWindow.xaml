@@ -1,0 +1,96 @@
+<Window x:Class="MyAiAssistant.Windows.SetupWizardWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Fairy AI - 首次配置"
+        WindowStartupLocation="CenterScreen"
+        Width="500" Height="480"
+        ResizeMode="NoResize"
+        Background="#1a1a2e">
+
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,16">
+            <TextBlock Text="Fairy AI" Foreground="#7b68ee" FontSize="24" FontWeight="Bold"/>
+            <TextBlock Text="首次配置 — 请填写 API Key" Foreground="#888" FontSize="12" Margin="0,4,0,0"/>
+        </StackPanel>
+
+        <!-- Steps indicator -->
+        <TextBlock Grid.Row="1" x:Name="StepIndicator" Text="步骤 1/3: 文本模型" Foreground="#555" FontSize="11" Margin="0,0,0,12"/>
+
+        <!-- Config panels (stacked, only one visible at a time) -->
+        <Grid Grid.Row="2">
+            <!-- Step 1: LLM -->
+            <StackPanel x:Name="LLMPanel" Visibility="Visible" Margin="0,8">
+                <TextBlock Text="LLM 文本模型" Foreground="#aaa" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                <TextBlock Text="选择提供商:" Foreground="#777" FontSize="11" Margin="0,0,0,4"/>
+                <ComboBox x:Name="LLMProviderCombo" Width="200" Margin="0,0,0,12" Background="#2a2a3e" Foreground="#ddd">
+                    <ComboBoxItem Content="Kimi (月之暗面)" IsSelected="True"/>
+                    <ComboBoxItem Content="DeepSeek"/>
+                    <ComboBoxItem Content="MiMo (小米)"/>
+                    <ComboBoxItem Content="OpenAI"/>
+                    <ComboBoxItem Content="Ollama (本地)"/>
+                </ComboBox>
+                <TextBlock Text="API Key:" Foreground="#777" FontSize="11" Margin="0,0,0,4"/>
+                <TextBox x:Name="LLMApiKeyBox" Width="380" Height="30" Background="#2a2a3e" Foreground="#ddd"
+                         BorderBrush="#444" Padding="8,4" FontSize="12"/>
+                <TextBlock x:Name="LLMHint" Text="从对应平台获取 API Key" Foreground="#555" FontSize="10" Margin="0,4,0,0"/>
+            </StackPanel>
+
+            <!-- Step 2: ASR -->
+            <StackPanel x:Name="ASRPanel" Visibility="Collapsed" Margin="0,8">
+                <TextBlock Text="ASR 语音识别" Foreground="#aaa" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                <TextBlock Text="选择提供商:" Foreground="#777" FontSize="11" Margin="0,0,0,4"/>
+                <ComboBox x:Name="ASRProviderCombo" Width="200" Margin="0,0,0,12" Background="#2a2a3e" Foreground="#ddd">
+                    <ComboBoxItem Content="MiMo-V2.5-ASR" IsSelected="True"/>
+                    <ComboBoxItem Content="系统语音 (免费)"/>
+                </ComboBox>
+                <TextBlock Text="API Key:" Foreground="#777" FontSize="11" Margin="0,0,0,4"/>
+                <TextBox x:Name="ASRApiKeyBox" Width="380" Height="30" Background="#2a2a3e" Foreground="#ddd"
+                         BorderBrush="#444" Padding="8,4" FontSize="12"/>
+                <TextBlock Text="可选 — 不填则使用系统语音识别" Foreground="#555" FontSize="10" Margin="0,4,0,0"/>
+            </StackPanel>
+
+            <!-- Step 3: TTS -->
+            <StackPanel x:Name="TTSPanel" Visibility="Collapsed" Margin="0,8">
+                <TextBlock Text="TTS 语音合成" Foreground="#aaa" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                <TextBlock Text="选择提供商:" Foreground="#777" FontSize="11" Margin="0,0,0,4"/>
+                <ComboBox x:Name="TTSProviderCombo" Width="200" Margin="0,0,0,12" Background="#2a2a3e" Foreground="#ddd">
+                    <ComboBoxItem Content="MiMo-V2.5-TTS" IsSelected="True"/>
+                    <ComboBoxItem Content="系统语音 (免费)"/>
+                </ComboBox>
+                <TextBlock Text="API Key:" Foreground="#777" FontSize="11" Margin="0,0,0,4"/>
+                <TextBox x:Name="TTSApiKeyBox" Width="380" Height="30" Background="#2a2a3e" Foreground="#ddd"
+                         BorderBrush="#444" Padding="8,4" FontSize="12"/>
+                <TextBlock Text="音色:" Foreground="#777" FontSize="11" Margin="0,8,0,4"/>
+                <ComboBox x:Name="TTSVoiceCombo" Width="200" Background="#2a2a3e" Foreground="#ddd">
+                    <ComboBoxItem Content="茉莉 (温柔)" IsSelected="True"/>
+                    <ComboBoxItem Content="冰糖 (甜美)"/>
+                    <ComboBoxItem Content="苏打 (活泼)"/>
+                    <ComboBoxItem Content="白桦 (自然)"/>
+                    <ComboBoxItem Content="Mia"/>
+                    <ComboBoxItem Content="Chloe"/>
+                </ComboBox>
+            </StackPanel>
+        </Grid>
+
+        <!-- Buttons -->
+        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+            <Button x:Name="BackBtn" Content="上一步" Width="80" Height="32" Margin="0,0,8,0"
+                    Background="#333" Foreground="#aaa" BorderThickness="0"
+                    Click="OnBackClick" Visibility="Collapsed"/>
+            <Button x:Name="NextBtn" Content="下一步" Width="80" Height="32"
+                    Background="#7b68ee" Foreground="white" BorderThickness="0"
+                    Click="OnNextClick"/>
+            <Button x:Name="FinishBtn" Content="完成" Width="80" Height="32" Margin="8,0,0,0"
+                    Background="#40e0d0" Foreground="white" BorderThickness="0"
+                    Click="OnFinishClick" Visibility="Collapsed"/>
+        </StackPanel>
+    </Grid>
+</Window>

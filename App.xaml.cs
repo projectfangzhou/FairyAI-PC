@@ -31,6 +31,38 @@ public partial class App : Application
 
         try
         {
+            // Check for setup-complete flag (from installer)
+            if (e.Args.Contains("--setup-complete"))
+            {
+                // Skip setup, just show usage
+                MessageBox.Show(
+                    "Fairy AI 安装完成！\n\n" +
+                    "使用方式：\n" +
+                    "1. 屏幕顶部中央有一个紫色圆球\n" +
+                    "2. 点击圆球 → 展开灵动岛，开始语音对话\n" +
+                    "3. 再次点击圆球 → 收回灵动岛\n" +
+                    "4. 灵动岛内支持文字输入和语音交互\n" +
+                    "5. AI 回复会自动语音播报",
+                    "Fairy AI", MessageBoxButton.OK, MessageBoxImage.Information);
+                Shutdown();
+                return;
+            }
+
+            // Check if first-run setup is needed
+            if (ConfigManager.NeedsSetup())
+            {
+                Log("First run detected — showing setup wizard");
+                var wizard = new SetupWizardWindow();
+                var result = wizard.ShowDialog();
+                if (result != true)
+                {
+                    Log("Setup cancelled by user");
+                    Shutdown();
+                    return;
+                }
+                Log("Setup completed");
+            }
+
             // DI
             var sc = new ServiceCollection();
             sc.AddSingleton<IMiMoAsrService, MiMoAsrService>();
