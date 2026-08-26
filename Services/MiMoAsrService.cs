@@ -9,13 +9,18 @@ namespace MyAiAssistant.Services;
 public class MiMoAsrService : IMiMoAsrService
 {
     private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(15) };
-    private const string ApiKey = "sk-cqderk1123z0vuwzzpr607xg6lv7o09n2wlo98fzefzaikgr";
-    private const string Endpoint = "https://api.xiaomimimo.com/v1/audio/transcriptions";
     private static readonly string LogPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "fairy.log");
 
     public async Task<string> TranscribeAsync(byte[] audioData, string format = "wav")
     {
         Log($"MiMo ASR: audio size={audioData.Length} bytes, format={format}");
+
+        var config = ConfigManager.Load();
+        if (string.IsNullOrWhiteSpace(config.ASR.ApiKey))
+        {
+            Log("MiMo ASR: no API key configured");
+            return "";
+        }
 
         try
         {
@@ -25,11 +30,11 @@ public class MiMoAsrService : IMiMoAsrService
             content.Add(audioContent, "file", $"audio.{format}");
             content.Add(new StringContent("mimo-v2.5-asr"), "model");
 
-            using var req = new HttpRequestMessage(HttpMethod.Post, Endpoint)
+            using var req = new HttpRequestMessage(HttpMethod.Post, "https://api.xiaomimimo.com/v1/audio/transcriptions")
             {
                 Content = content
             };
-            req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", ApiKey);
+            req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", config.ASR.ApiKey);
 
             using var resp = await Http.SendAsync(req);
 

@@ -9,7 +9,6 @@ namespace MyAiAssistant.Services;
 public class TavilySearchService : ITavilySearchService
 {
     private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(15) };
-    private const string ApiKey = "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";
     private const string Endpoint = "https://api.tavily.com/search";
     private static readonly string LogPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "fairy.log");
 
@@ -31,7 +30,14 @@ public class TavilySearchService : ITavilySearchService
             {
                 Content = new StringContent(payload, Encoding.UTF8, "application/json")
             };
-            req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", ApiKey);
+
+            var config = ConfigManager.Load();
+            if (string.IsNullOrWhiteSpace(config.Tavily.ApiKey))
+            {
+                Log("Tavily: no API key configured, skipping search");
+                return "联网搜索未配置，请在设置中填写 Tavily API Key。";
+            }
+            req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", config.Tavily.ApiKey);
 
             using var resp = await Http.SendAsync(req);
             if (!resp.IsSuccessStatusCode)

@@ -8,6 +8,7 @@ public class AppConfig
     public LLMConfig LLM { get; set; } = new();
     public ASRConfig ASR { get; set; } = new();
     public TTSConfig TTS { get; set; } = new();
+    public TavilyConfig Tavily { get; set; } = new();
 }
 
 public class LLMConfig
@@ -30,6 +31,11 @@ public class TTSConfig
     public string Provider { get; set; } = "MiMo";
     public string ApiKey { get; set; } = "";
     public string Voice { get; set; } = "茉莉";
+}
+
+public class TavilyConfig
+{
+    public string ApiKey { get; set; } = "";
 }
 
 public static class ConfigManager

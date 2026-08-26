@@ -49,7 +49,8 @@ public class IntentAnalyzer : IIntentAnalyzer
         var fullResponse = new StringBuilder();
         try
         {
-            await foreach (var chunk in _llm.StreamChatAsync([], fullPrompt, "https://api.moonshot.cn/v1/chat/completions", "kimi-k2.6", "sk-AJjPEqZImXxDtZwGg4PwmSy2WBuaTbbs4o8mTHlx4VoqBcIv"))
+            var config = ConfigManager.Load();
+            await foreach (var chunk in _llm.StreamChatAsync([], fullPrompt, config.LLM.BaseUrl, config.LLM.Model, config.LLM.ApiKey))
             {
                 fullResponse.Append(chunk);
             }

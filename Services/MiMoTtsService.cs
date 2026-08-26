@@ -10,7 +10,6 @@ namespace MyAiAssistant.Services;
 public class MiMoTtsService : IMiMoTtsService
 {
     private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(30) };
-    private const string ApiKey = "sk-c5ztsi49y85kfnj6j6ynfh56wcdlvst5g0i463h1owltxnna";
     private const string Endpoint = "https://api.xiaomimimo.com/v1/chat/completions";
     private const string Model = "mimo-v2.5-tts";
 
@@ -72,7 +71,14 @@ public class MiMoTtsService : IMiMoTtsService
             {
                 Content = new StringContent(payload, Encoding.UTF8, "application/json")
             };
-            req.Headers.Add("api-key", ApiKey);
+
+            var config = ConfigManager.Load();
+            if (string.IsNullOrWhiteSpace(config.TTS.ApiKey))
+            {
+                Log("TTS: no API key configured");
+                return Array.Empty<byte>();
+            }
+            req.Headers.Add("api-key", config.TTS.ApiKey);
 
             using var resp = await Http.SendAsync(req);
 

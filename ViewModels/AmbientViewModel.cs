@@ -26,9 +26,9 @@ public partial class AmbientViewModel : ObservableObject, IDisposable
     private readonly IAudioPlayerService _audioPlayer;
     private readonly string _sessionId = Guid.NewGuid().ToString("N");
 
-    [ObservableProperty] private string _endpoint = "https://api.moonshot.cn/v1/chat/completions";
-    [ObservableProperty] private string _model = "kimi-k2.6";
-    [ObservableProperty] private string? _apiKey = "sk-AJjPEqZImXxDtZwGg4PwmSy2WBuaTbbs4o8mTHlx4VoqBcIv";
+    [ObservableProperty] private string _endpoint = "";
+    [ObservableProperty] private string _model = "";
+    [ObservableProperty] private string? _apiKey = "";
     [ObservableProperty] private bool _isActive;
     [ObservableProperty] private bool _isListening;
     [ObservableProperty] private bool _isProcessing;
@@ -72,6 +72,12 @@ public partial class AmbientViewModel : ObservableObject, IDisposable
 
     public async Task InitializeAsync()
     {
+        // Load config
+        var config = ConfigManager.Load();
+        Endpoint = config.LLM.BaseUrl;
+        Model = config.LLM.Model;
+        ApiKey = config.LLM.ApiKey;
+
         await _history.InitializeAsync();
         await _mapping.InitializeAsync();
         try { _claw.Start(); } catch { /* OpenClaw is optional */ }
