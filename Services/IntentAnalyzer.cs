@@ -5,7 +5,7 @@ namespace MyAiAssistant.Services;
 
 public class IntentResult
 {
-    public string Intent { get; set; } = "chat"; // chat, open_app, search_file, search_web, open_url
+    public string Intent { get; set; } = "chat"; // chat, open_app, search_file, search_web, open_url, analyze_screen, open_song
     public string Query { get; set; } = "";
     public string Reply { get; set; } = "";
 }
@@ -32,16 +32,19 @@ public class IntentAnalyzer : IIntentAnalyzer
         var systemPrompt = @"你是一个意图分析器。分析用户的消息，判断用户想做什么。
 
 返回一个JSON对象，包含以下字段：
-- intent: 可选值为 chat(普通聊天/问答), open_app(打开应用/程序), search_file(搜索本地文件), search_web(联网搜索)
-- query: 如果是 open_app，提取应用名称；如果是 search_file，提取搜索关键词；如果是 search_web，提取搜索词；如果是 chat，留空
+- intent: 可选值为 chat(普通聊天/问答), open_app(打开应用/程序), search_file(搜索本地文件), search_web(联网搜索), analyze_screen(识别/描述屏幕内容), open_song(播放歌曲)
+- query: 如果是 open_app，提取应用名称；如果是 search_file，提取搜索关键词；如果是 search_web，提取搜索词；如果是 analyze_screen，提取用户想分析的具体问题或留空表示全面描述；如果是 open_song，提取歌曲名/歌手名；如果是 chat，留空
 - reply: 如果是 chat，生成一个简短的回复；其他 intent 留空
 
 注意：
 - 打开xxx 且 xxx 是已知软件名 → open_app
-- 打开xxx 且 xxx 是文件名/歌曲名/文档名 → search_file
+- 打开xxx 且 xxx 是文件名/文档名 → search_file
+- 播放xxx/放一首xxx/我想听xxx/来首xxx → open_song
 - 查找/搜索xxx → search_file
 - 今天天气/最新新闻/实时信息 → search_web
 - 你好/谢谢/闲聊 → chat
+- 看一下屏幕/屏幕上是什么/帮我看看屏幕/截图识别/屏幕内容 → analyze_screen
+- 这是什么/这上面写的什么（当上下文暗示正在看屏幕时） → analyze_screen
 - 只返回JSON，不要其他内容";
 
         var fullPrompt = $"{systemPrompt}\n\n[对话历史]\n{conversationHistory}\n\n[用户消息]\n{userMessage}";

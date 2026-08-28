@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Fairy AI - 首次配置"
         WindowStartupLocation="CenterScreen"
-        Width="500" Height="480"
+        Width="500" Height="540"
         ResizeMode="NoResize"
         Background="#1a1a2e">
 
@@ -22,7 +22,7 @@
         </StackPanel>
 
         <!-- Steps indicator -->
-        <TextBlock Grid.Row="1" x:Name="StepIndicator" Text="步骤 1/3: 文本模型" Foreground="#555" FontSize="11" Margin="0,0,0,12"/>
+        <TextBlock Grid.Row="1" x:Name="StepIndicator" Text="步骤 1/6: 文本模型" Foreground="#555" FontSize="11" Margin="0,0,0,12"/>
 
         <!-- Config panels (stacked, only one visible at a time) -->
         <Grid Grid.Row="2">
@@ -43,12 +43,32 @@
                 <TextBlock x:Name="LLMHint" Text="从对应平台获取 API Key" Foreground="#555" FontSize="10" Margin="0,4,0,0"/>
             </StackPanel>
 
-            <!-- Step 2: ASR -->
+            <!-- Step 2: Vision -->
+            <StackPanel x:Name="VisionPanel" Visibility="Collapsed" Margin="0,8">
+                <TextBlock Text="视觉模型 (屏幕识别)" Foreground="#aaa" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                <TextBlock Text="选择提供商:" Foreground="#777" FontSize="11" Margin="0,0,0,4"/>
+                <ComboBox x:Name="VisionProviderCombo" Width="200" Margin="0,0,0,12" Background="#2a2a3e" Foreground="#ddd">
+                    <ComboBoxItem Content="OpenAI (GPT-4o)" IsSelected="True"/>
+                    <ComboBoxItem Content="Google Gemini"/>
+                    <ComboBoxItem Content="DeepSeek"/>
+                    <ComboBoxItem Content="MiMo (小米)"/>
+                    <ComboBoxItem Content="Azure OpenAI"/>
+                </ComboBox>
+                <TextBlock Text="API Key:" Foreground="#777" FontSize="11" Margin="0,0,0,4"/>
+                <TextBox x:Name="VisionApiKeyBox" Width="380" Height="30" Background="#2a2a3e" Foreground="#ddd"
+                         BorderBrush="#444" Padding="8,4" FontSize="12"/>
+                <TextBlock x:Name="VisionHint" Text="用于识别屏幕内容，可选配置" Foreground="#555" FontSize="10" Margin="0,4,0,0"/>
+            </StackPanel>
+
+            <!-- Step 3: ASR -->
             <StackPanel x:Name="ASRPanel" Visibility="Collapsed" Margin="0,8">
                 <TextBlock Text="ASR 语音识别" Foreground="#aaa" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,8"/>
                 <TextBlock Text="选择提供商:" Foreground="#777" FontSize="11" Margin="0,0,0,4"/>
                 <ComboBox x:Name="ASRProviderCombo" Width="200" Margin="0,0,0,12" Background="#2a2a3e" Foreground="#ddd">
                     <ComboBoxItem Content="MiMo-V2.5-ASR" IsSelected="True"/>
+                    <ComboBoxItem Content="OpenAI Whisper"/>
+                    <ComboBoxItem Content="Google Speech"/>
+                    <ComboBoxItem Content="Microsoft Azure Speech"/>
                     <ComboBoxItem Content="系统语音 (免费)"/>
                 </ComboBox>
                 <TextBlock Text="API Key:" Foreground="#777" FontSize="11" Margin="0,0,0,4"/>
@@ -57,12 +77,15 @@
                 <TextBlock Text="可选 — 不填则使用系统语音识别" Foreground="#555" FontSize="10" Margin="0,4,0,0"/>
             </StackPanel>
 
-            <!-- Step 3: TTS -->
+            <!-- Step 4: TTS -->
             <StackPanel x:Name="TTSPanel" Visibility="Collapsed" Margin="0,8">
                 <TextBlock Text="TTS 语音合成" Foreground="#aaa" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,8"/>
                 <TextBlock Text="选择提供商:" Foreground="#777" FontSize="11" Margin="0,0,0,4"/>
                 <ComboBox x:Name="TTSProviderCombo" Width="200" Margin="0,0,0,12" Background="#2a2a3e" Foreground="#ddd">
                     <ComboBoxItem Content="MiMo-V2.5-TTS" IsSelected="True"/>
+                    <ComboBoxItem Content="OpenAI TTS"/>
+                    <ComboBoxItem Content="Microsoft Azure TTS"/>
+                    <ComboBoxItem Content="Google TTS"/>
                     <ComboBoxItem Content="系统语音 (免费)"/>
                 </ComboBox>
                 <TextBlock Text="API Key:" Foreground="#777" FontSize="11" Margin="0,0,0,4"/>
@@ -77,6 +100,39 @@
                     <ComboBoxItem Content="Mia"/>
                     <ComboBoxItem Content="Chloe"/>
                 </ComboBox>
+            </StackPanel>
+
+            <!-- Step 5: Fallback LLM -->
+            <StackPanel x:Name="FallbackLLMPanel" Visibility="Collapsed" Margin="0,8">
+                <TextBlock Text="备用文本模型 (可选)" Foreground="#aaa" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                <TextBlock Text="当主模型报错时自动切换" Foreground="#555" FontSize="11" Margin="0,0,0,8"/>
+                <TextBlock Text="选择提供商:" Foreground="#777" FontSize="11" Margin="0,0,0,4"/>
+                <ComboBox x:Name="FallbackLLMProviderCombo" Width="200" Margin="0,0,0,12" Background="#2a2a3e" Foreground="#ddd">
+                    <ComboBoxItem Content="Kimi (月之暗面)" IsSelected="True"/>
+                    <ComboBoxItem Content="DeepSeek"/>
+                    <ComboBoxItem Content="MiMo (小米)"/>
+                    <ComboBoxItem Content="OpenAI"/>
+                    <ComboBoxItem Content="Ollama (本地)"/>
+                </ComboBox>
+                <TextBlock Text="API Key:" Foreground="#777" FontSize="11" Margin="0,0,0,4"/>
+                <TextBox x:Name="FallbackLLMApiKeyBox" Width="380" Height="30" Background="#2a2a3e" Foreground="#ddd"
+                         BorderBrush="#444" Padding="8,4" FontSize="12"/>
+                <TextBlock x:Name="FallbackLLMHint" Text="可选 — 不填则不启用备用模型" Foreground="#555" FontSize="10" Margin="0,4,0,0"/>
+            </StackPanel>
+
+            <!-- Step 6: Local Vision Model -->
+            <StackPanel x:Name="LocalVisionPanel" Visibility="Collapsed" Margin="0,8">
+                <TextBlock Text="本地视觉模型 (离线识图)" Foreground="#aaa" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                <TextBlock Text="无需网络，使用本地小型模型识别屏幕" Foreground="#555" FontSize="11" Margin="0,0,0,8"/>
+                <CheckBox x:Name="EnableLocalVisionCheckBox" Content="启用本地视觉模型" Foreground="#aaa" FontSize="12" Margin="0,0,0,8"/>
+                <TextBlock Text="选择模型:" Foreground="#777" FontSize="11" Margin="0,0,0,4"/>
+                <ComboBox x:Name="LocalVisionModelCombo" Width="200" Margin="0,0,0,12" Background="#2a2a3e" Foreground="#ddd">
+                    <ComboBoxItem Content="llava-phi3 (推荐, ~2GB)" IsSelected="True"/>
+                    <ComboBoxItem Content="llava-1.5-7b (~4GB)"/>
+                    <ComboBoxItem Content="bakllava (~4GB)"/>
+                </ComboBox>
+                <TextBlock Text="说明: 首次使用需下载模型文件，约 2-4GB" Foreground="#555" FontSize="10" Margin="0,4,0,0"/>
+                <TextBlock Text="模型将保存在应用目录的 models 文件夹中" Foreground="#555" FontSize="10" Margin="0,2,0,0"/>
             </StackPanel>
         </Grid>
 

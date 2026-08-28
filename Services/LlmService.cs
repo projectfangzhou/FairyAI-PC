@@ -108,6 +108,77 @@ public class LlmService : ILlmService
         Log($"LLM streaming done, {chunkCount} chunks total");
     }
 
+    /// <summary>Stream chat with automatic fallback to backup model on error.</summary>
+    public async IAsyncEnumerable<string> StreamChatWithFallbackAsync(
+        IEnumerable<ChatMessage> history,
+        string userPrompt,
+        [EnumeratorCancellation] CancellationToken ct = default)
+    {
+        var config = ConfigManager.Load();
+
+        // Try primary model first - collect results
+        var primaryResults = new List<string>();
+        bool primaryFailed = false;
+        try
+        {
+            await foreach (var chunk in StreamChatAsync(history, userPrompt, config.LLM.BaseUrl, config.LLM.Model, config.LLM.ApiKey, ct))
+            {
+                primaryResults.Add(chunk);
+            }
+        }
+        catch (Exception ex)
+        {
+            Log($"Primary LLM failed: {ex.Message}");
+            primaryFailed = true;
+        }
+
+        // If primary succeeded, yield results
+        if (!primaryFailed && primaryResults.Count > 0)
+        {
+            foreach (var chunk in primaryResults)
+                yield return chunk;
+            yield break;
+        }
+
+        // If primary failed and fallback is configured, try fallback
+        if (primaryFailed)
+        {
+            var fallback = ConfigManager.GetFallbackLLMConfig();
+            if (fallback != null)
+            {
+                Log($"Trying fallback LLM: {fallback.Provider} at {fallback.BaseUrl}");
+                var fallbackResults = new List<string>();
+                bool fallbackFailed = false;
+                try
+                {
+                    await foreach (var chunk in StreamChatAsync(history, userPrompt, fallback.BaseUrl, fallback.Model, fallback.ApiKey, ct))
+                    {
+                        fallbackResults.Add(chunk);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log($"Fallback LLM also failed: {ex.Message}");
+                    fallbackFailed = true;
+                }
+
+                if (!fallbackFailed && fallbackResults.Count > 0)
+                {
+                    foreach (var chunk in fallbackResults)
+                        yield return chunk;
+                }
+                else
+                {
+                    yield return "抱歉，主模型和备用模型都无法响应。请检查网络连接和 API 配置。";
+                }
+            }
+            else
+            {
+                yield return "抱歉，主模型响应失败。请检查网络连接和 API 配置，或设置备用模型。";
+            }
+        }
+    }
+
     private static void Log(string msg)
     {
         try { File.AppendAllText(LogPath, $"[{DateTime.Now:HH:mm:ss}] {msg}\n"); } catch { }

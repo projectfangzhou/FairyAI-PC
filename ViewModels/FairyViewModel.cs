@@ -21,6 +21,7 @@ public partial class FairyViewModel : ObservableObject, IDisposable
     private readonly ITavilySearchService _search;
     private readonly IMiMoTtsService _tts;
     private readonly IAudioPlayerService _audioPlayer;
+    private readonly IVisionService _vision;
 
     private FloatingOrbWindow? _orb;
     private DynamicIslandWindow? _island;
@@ -43,7 +44,7 @@ public partial class FairyViewModel : ObservableObject, IDisposable
         IChatHistoryService history, IOpenClawAgentService agent,
         IAppMappingService mapping, IIntentAnalyzer intent,
         ITavilySearchService search, IMiMoTtsService tts,
-        IAudioPlayerService audioPlayer)
+        IAudioPlayerService audioPlayer, IVisionService vision)
     {
         _speech = speech;
         _llm = llm;
@@ -54,6 +55,7 @@ public partial class FairyViewModel : ObservableObject, IDisposable
         _search = search;
         _tts = tts;
         _audioPlayer = audioPlayer;
+        _vision = vision;
 
         _speech.SpeechRecognized += OnSpeechRecognized;
         _speech.SpeechEnded += OnSpeechEnded;
@@ -191,6 +193,12 @@ public partial class FairyViewModel : ObservableObject, IDisposable
                 case "search_web":
                     await HandleSearchWeb(intent.Query);
                     break;
+                case "analyze_screen":
+                    await HandleAnalyzeScreen(intent.Query);
+                    break;
+                case "open_song":
+                    await HandleOpenSong(intent.Query);
+                    break;
                 default:
                     await HandleChat(text);
                     break;
@@ -278,6 +286,106 @@ public partial class FairyViewModel : ObservableObject, IDisposable
         await HandleChatInternal($"[联网搜索结果]\n{webResult}\n\n[用户问题] {query}");
     }
 
+    private async Task HandleAnalyzeScreen(string query)
+    {
+        await UpdateStatus("正在截取屏幕...");
+        var prompt = string.IsNullOrWhiteSpace(query)
+            ? "请详细描述这张屏幕截图中的所有内容，包括文字、界面元素、应用程序等。"
+            : $"用户想了解: {query}。请根据屏幕截图回答。";
+
+        var result = await _vision.AnalyzeScreenAsync(prompt);
+        await ShowResponse(result);
+    }
+
+    private async Task HandleOpenSong(string query)
+    {
+        await UpdateStatus("搜索歌曲...");
+
+        // First, try to search online for the song
+        var searchResult = await _search.SearchAsync($"{query} 歌曲 播放");
+
+        // Extract song name from search results
+        var songName = ExtractSongNameFromSearch(searchResult, query);
+
+        if (!string.IsNullOrWhiteSpace(songName))
+        {
+            // Try to find the song locally
+            var localPath = await FindLocalSong(songName);
+            if (!string.IsNullOrWhiteSpace(localPath))
+            {
+                await UpdateStatus("播放歌曲...");
+                await _agent.OpenAppAsync(localPath);
+                await ShowResponse($"正在播放: {songName}");
+                return;
+            }
+        }
+
+        // If not found online or locally, try with original query
+        var localPathWithOriginal = await FindLocalSong(query);
+        if (!string.IsNullOrWhiteSpace(localPathWithOriginal))
+        {
+            await UpdateStatus("播放歌曲...");
+            await _agent.OpenAppAsync(localPathWithOriginal);
+            await ShowResponse($"正在播放: {query}");
+            return;
+        }
+
+        // If still not found, inform user
+        await ShowResponse($"未找到歌曲 \"{query}\"。请检查歌曲名称是否正确。");
+    }
+
+    private string ExtractSongNameFromSearch(string searchResult, string originalQuery)
+    {
+        // Simple extraction: look for patterns like "歌名: xxx" or "歌曲: xxx"
+        var lines = searchResult.Split('\n');
+        foreach (var line in lines)
+        {
+            if (line.Contains("歌名") || line.Contains("歌曲") || line.Contains("title"))
+            {
+                var parts = line.Split(new[] { ':', '：' }, 2);
+                if (parts.Length > 1)
+                {
+                    var name = parts[1].Trim();
+                    if (!string.IsNullOrWhiteSpace(name) && name.Length < 100)
+                        return name;
+                }
+            }
+        }
+        return originalQuery;
+    }
+
+    private async Task<string?> FindLocalSong(string songName)
+    {
+        // Search common music directories
+        var musicDirs = new[]
+        {
+            Environment.GetFolderPath(Environment.SpecialFolder.MyMusic),
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) + "\\Music",
+            "C:\\Music",
+            "D:\\Music"
+        };
+
+        var musicExtensions = new[] { ".mp3", ".flac", ".wav", ".m4a", ".aac", ".wma", ".ogg" };
+
+        foreach (var dir in musicDirs)
+        {
+            if (!Directory.Exists(dir)) continue;
+
+            try
+            {
+                var files = Directory.GetFiles(dir, "*.*", SearchOption.AllDirectories)
+                    .Where(f => musicExtensions.Contains(Path.GetExtension(f).ToLowerInvariant()))
+                    .Where(f => Path.GetFileNameWithoutExtension(f).Contains(songName, StringComparison.OrdinalIgnoreCase));
+
+                if (files.Any())
+                    return files.First();
+            }
+            catch { }
+        }
+
+        return null;
+    }
+
     private async Task HandleChat(string text)
     {
         await HandleChatInternal(text);
@@ -290,9 +398,7 @@ public partial class FairyViewModel : ObservableObject, IDisposable
         var fullResponse = new StringBuilder();
         try
         {
-            await foreach (var chunk in _llm.StreamChatAsync(
-                GetHistoryMessages(), text,
-                CurrentProvider.BaseUrl, CurrentProvider.Model, CurrentProvider.ApiKey))
+            await foreach (var chunk in _llm.StreamChatWithFallbackAsync(GetHistoryMessages(), text))
             {
                 fullResponse.Append(chunk);
                 var snapshot = fullResponse.ToString();
@@ -398,9 +504,6 @@ public partial class FairyViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     private ObservableCollection<ChatMessage> _messages = new();
-
-    // Provider config
-    public LLMProviderConfig CurrentProvider => LLMProviders.Presets[0]; // Default to Kimi
 
     public void Dispose()
     {

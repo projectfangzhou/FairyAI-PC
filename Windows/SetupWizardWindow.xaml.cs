@@ -6,7 +6,7 @@ namespace MyAiAssistant.Windows;
 public partial class SetupWizardWindow : Window
 {
     private int _currentStep = 1;
-    private const int TotalSteps = 3;
+    private const int TotalSteps = 6;
 
     public SetupWizardWindow()
     {
@@ -41,7 +41,8 @@ public partial class SetupWizardWindow : Window
             "2. 点击圆球 → 展开灵动岛，开始语音对话\n" +
             "3. 再次点击圆球 → 收回灵动岛\n" +
             "4. 灵动岛内支持文字输入和语音交互\n" +
-            "5. AI 回复会自动语音播报\n\n" +
+            "5. AI 回复会自动语音播报\n" +
+            "6. 说\"看一下屏幕\"可让AI分析屏幕内容\n\n" +
             "按 Alt+Q 可随时退出应用。",
             "Fairy AI — 使用指南",
             MessageBoxButton.OK, MessageBoxImage.Information);
@@ -55,8 +56,11 @@ public partial class SetupWizardWindow : Window
         StepIndicator.Text = $"步骤 {_currentStep}/{TotalSteps}: {GetStepName(_currentStep)}";
 
         LLMPanel.Visibility = _currentStep == 1 ? Visibility.Visible : Visibility.Collapsed;
-        ASRPanel.Visibility = _currentStep == 2 ? Visibility.Visible : Visibility.Collapsed;
-        TTSPanel.Visibility = _currentStep == 3 ? Visibility.Visible : Visibility.Collapsed;
+        VisionPanel.Visibility = _currentStep == 2 ? Visibility.Visible : Visibility.Collapsed;
+        ASRPanel.Visibility = _currentStep == 3 ? Visibility.Visible : Visibility.Collapsed;
+        TTSPanel.Visibility = _currentStep == 4 ? Visibility.Visible : Visibility.Collapsed;
+        FallbackLLMPanel.Visibility = _currentStep == 5 ? Visibility.Visible : Visibility.Collapsed;
+        LocalVisionPanel.Visibility = _currentStep == 6 ? Visibility.Visible : Visibility.Collapsed;
 
         BackBtn.Visibility = _currentStep > 1 ? Visibility.Visible : Visibility.Collapsed;
         NextBtn.Visibility = _currentStep < TotalSteps ? Visibility.Visible : Visibility.Collapsed;
@@ -66,8 +70,11 @@ public partial class SetupWizardWindow : Window
     private string GetStepName(int step) => step switch
     {
         1 => "文本模型",
-        2 => "语音识别",
-        3 => "语音合成",
+        2 => "视觉模型",
+        3 => "语音识别",
+        4 => "语音合成",
+        5 => "备用模型",
+        6 => "离线视觉",
         _ => ""
     };
 
@@ -80,6 +87,11 @@ public partial class SetupWizardWindow : Window
                 Provider = (LLMProviderCombo.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Content?.ToString() ?? "Kimi",
                 ApiKey = LLMApiKeyBox.Text.Trim()
             },
+            Vision = new VisionConfig
+            {
+                Provider = (VisionProviderCombo.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Content?.ToString() ?? "OpenAI",
+                ApiKey = VisionApiKeyBox.Text.Trim()
+            },
             ASR = new ASRConfig
             {
                 Provider = (ASRProviderCombo.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Content?.ToString() ?? "MiMo",
@@ -90,6 +102,16 @@ public partial class SetupWizardWindow : Window
                 Provider = (TTSProviderCombo.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Content?.ToString() ?? "MiMo",
                 ApiKey = TTSApiKeyBox.Text.Trim(),
                 Voice = (TTSVoiceCombo.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Content?.ToString() ?? "茉莉"
+            },
+            FallbackLLM = new LLMConfig
+            {
+                Provider = (FallbackLLMProviderCombo.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Content?.ToString() ?? "Kimi",
+                ApiKey = FallbackLLMApiKeyBox.Text.Trim()
+            },
+            LocalVision = new LocalVisionConfig
+            {
+                Enabled = EnableLocalVisionCheckBox.IsChecked ?? false,
+                ModelName = (LocalVisionModelCombo.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Content?.ToString()?.Split(' ')[0] ?? "llava-phi3"
             }
         };
 
@@ -99,6 +121,43 @@ public partial class SetupWizardWindow : Window
         {
             config.LLM.BaseUrl = llmInfo.Value.BaseUrl;
             config.LLM.Model = llmInfo.Value.Model;
+        }
+
+        // Set vision base URL and model based on provider
+        var visionPreset = ConfigManager.GetVisionProviderInfo(config.Vision.Provider);
+        if (visionPreset.HasValue)
+        {
+            config.Vision.BaseUrl = visionPreset.Value.BaseUrl;
+            config.Vision.Model = visionPreset.Value.Model;
+        }
+
+        // Set ASR base URL
+        var asrPreset = ConfigManager.GetAsrProviderInfo(config.ASR.Provider);
+        if (asrPreset.HasValue)
+        {
+            config.ASR.BaseUrl = asrPreset.Value.BaseUrl;
+        }
+
+        // Set TTS base URL
+        var ttsPreset = ConfigManager.GetTtsProviderInfo(config.TTS.Provider);
+        if (ttsPreset.HasValue)
+        {
+            config.TTS.BaseUrl = ttsPreset.Value.BaseUrl;
+        }
+
+        // Set fallback LLM base URL and model
+        var fallbackLLMInfo = ConfigManager.GetProviderInfo(config.FallbackLLM.Provider);
+        if (fallbackLLMInfo.HasValue)
+        {
+            config.FallbackLLM.BaseUrl = fallbackLLMInfo.Value.BaseUrl;
+            config.FallbackLLM.Model = fallbackLLMInfo.Value.Model;
+        }
+
+        // Set local vision model path
+        var localVisionInfo = ConfigManager.GetLocalVisionModelInfo(config.LocalVision.ModelName);
+        if (localVisionInfo.HasValue)
+        {
+            config.LocalVision.ModelPath = localVisionInfo.Value.ModelPath;
         }
 
         ConfigManager.Save(config);

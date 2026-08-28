@@ -77,6 +77,7 @@ public partial class App : Application
             sc.AddSingleton<IAppMappingService, AppMappingService>();
             sc.AddSingleton<IEverythingService, EverythingService>();
             sc.AddSingleton<IIntentAnalyzer, IntentAnalyzer>();
+            sc.AddSingleton<IVisionService, VisionService>();
             sc.AddSingleton<FairyViewModel>();
             _services = sc.BuildServiceProvider();
             Log("DI container built");

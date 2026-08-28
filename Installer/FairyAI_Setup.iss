@@ -1,7 +1,7 @@
 ; Fairy AI Installer Script for Inno Setup
 
 #define MyAppName "Fairy AI"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "1.2.0"
 #define MyAppPublisher "Fairy AI"
 #define MyAppExeName "MyAiAssistant.exe"
 
@@ -27,7 +27,7 @@ UninstallDisplayIcon={app}\{#MyAppExeName}
 [Files]
 Source: "..\bin\Release\net8.0-windows\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "..\Dependencies\Everything\*"; DestDir: "{app}\Everything"; Flags: ignoreversion recursesubdirs createallsubdirs skipifsourcedoesntexist
-Source: "..\Dependencies\OpenClaw\*"; DestDir: "{app}\OpenClaw"; Flags: ignoreversion recursesubdirs createallsubdirs skipifsourcedoesntexist
+Source: "..\models\*"; DestDir: "{app}\models"; Flags: ignoreversion recursesubdirs createallsubdirs skipifsourcedoesntexist
 
 [Run]
 ; Auto-download and install .NET 8 Runtime if not present
@@ -49,8 +49,11 @@ end;
 
 var
   LLMKeyPage: TInputQueryWizardPage;
+  VisionKeyPage: TInputQueryWizardPage;
   ASRKeyPage: TInputQueryWizardPage;
   TTSKeyPage: TInputQueryWizardPage;
+  FallbackLLMKeyPage: TInputQueryWizardPage;
+  LocalVisionPage: TInputQueryWizardPage;
 
 procedure InitializeWizard;
 begin
@@ -63,10 +66,19 @@ begin
   LLMKeyPage.Values[0] := 'Kimi';
   LLMKeyPage.Values[1] := '';
 
-  ASRKeyPage := CreateInputQueryPage(LLMKeyPage.ID,
+  VisionKeyPage := CreateInputQueryPage(LLMKeyPage.ID,
+    'Configure Vision Model API',
+    'Enter your Vision API Key (optional)',
+    'Supported: OpenAI GPT-4o, Google Gemini, DeepSeek, MiMo. Used for screen content recognition.');
+  VisionKeyPage.Add('Provider:', False);
+  VisionKeyPage.Add('API Key:', True);
+  VisionKeyPage.Values[0] := 'OpenAI (GPT-4o)';
+  VisionKeyPage.Values[1] := '';
+
+  ASRKeyPage := CreateInputQueryPage(VisionKeyPage.ID,
     'Configure Speech Recognition API',
     'Enter your ASR API Key (optional)',
-    'Supported: MiMo-V2.5-ASR. Leave blank to use system speech.');
+    'Supported: MiMo-V2.5-ASR, OpenAI Whisper, Google Speech, Azure Speech. Leave blank to use system speech.');
   ASRKeyPage.Add('Provider:', False);
   ASRKeyPage.Add('API Key:', True);
   ASRKeyPage.Values[0] := 'MiMo-V2.5-ASR';
@@ -75,25 +87,58 @@ begin
   TTSKeyPage := CreateInputQueryPage(ASRKeyPage.ID,
     'Configure Text-to-Speech API',
     'Enter your TTS API Key (optional)',
-    'Supported: MiMo-V2.5-TTS. Leave blank to use system TTS.');
+    'Supported: MiMo-V2.5-TTS, OpenAI TTS, Azure TTS, Google TTS. Leave blank to use system TTS.');
   TTSKeyPage.Add('Provider:', False);
   TTSKeyPage.Add('API Key:', True);
   TTSKeyPage.Values[0] := 'MiMo-V2.5-TTS';
   TTSKeyPage.Values[1] := '';
+
+  FallbackLLMKeyPage := CreateInputQueryPage(TTSKeyPage.ID,
+    'Configure Fallback Text Model (Optional)',
+    'Enter your backup LLM API Key',
+    'Used when primary model fails. Leave blank to disable.');
+  FallbackLLMKeyPage.Add('Provider:', False);
+  FallbackLLMKeyPage.Add('API Key:', True);
+  FallbackLLMKeyPage.Values[0] := 'Kimi';
+  FallbackLLMKeyPage.Values[1] := '';
+
+  LocalVisionPage := CreateInputQueryPage(FallbackLLMKeyPage.ID,
+    'Configure Local Vision Model (Optional)',
+    'Enable offline screen recognition',
+    'Uses small local model (llava-phi3 ~2GB) for offline vision. Requires Ollama installed.');
+  LocalVisionPage.Add('Enable local vision (yes/no):', False);
+  LocalVisionPage.Add('Model name:', False);
+  LocalVisionPage.Values[0] := 'no';
+  LocalVisionPage.Values[1] := 'llava-phi3';
 end;
 
 procedure SaveConfig;
 var
   ConfigFile: string;
   SL: TStringList;
+  EnableLocalVision: string;
 begin
   ConfigFile := ExpandConstant('{app}\config.json');
   SL := TStringList.Create;
   try
+    // Convert yes/no to true/false for JSON
+    if LowerCase(LocalVisionPage.Values[0]) = 'yes' then
+      EnableLocalVision := 'true'
+    else
+      EnableLocalVision := 'false';
+
     SL.Add('{');
     SL.Add('  "llm": {');
     SL.Add('    "provider": "' + LLMKeyPage.Values[0] + '",');
     SL.Add('    "apiKey": "' + LLMKeyPage.Values[1] + '"');
+    SL.Add('  },');
+    SL.Add('  "fallbackLLM": {');
+    SL.Add('    "provider": "' + FallbackLLMKeyPage.Values[0] + '",');
+    SL.Add('    "apiKey": "' + FallbackLLMKeyPage.Values[1] + '"');
+    SL.Add('  },');
+    SL.Add('  "vision": {');
+    SL.Add('    "provider": "' + VisionKeyPage.Values[0] + '",');
+    SL.Add('    "apiKey": "' + VisionKeyPage.Values[1] + '"');
     SL.Add('  },');
     SL.Add('  "asr": {');
     SL.Add('    "provider": "' + ASRKeyPage.Values[0] + '",');
@@ -102,6 +147,10 @@ begin
     SL.Add('  "tts": {');
     SL.Add('    "provider": "' + TTSKeyPage.Values[0] + '",');
     SL.Add('    "apiKey": "' + TTSKeyPage.Values[1] + '"');
+    SL.Add('  },');
+    SL.Add('  "localVision": {');
+    SL.Add('    "enabled": ' + EnableLocalVision + ',');
+    SL.Add('    "modelName": "' + LocalVisionPage.Values[1] + '"');
     SL.Add('  }');
     SL.Add('}');
     SL.SaveToFile(ConfigFile);
