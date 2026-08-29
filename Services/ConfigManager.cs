@@ -12,6 +12,9 @@ public class AppConfig
     public VisionConfig Vision { get; set; } = new();
     public LocalVisionConfig LocalVision { get; set; } = new();
     public TavilyConfig Tavily { get; set; } = new();
+    public Live2DConfig Live2D { get; set; } = new();
+    public SyncConfig Sync { get; set; } = new();
+    public NatTraversalConfig NatTraversal { get; set; } = new();
 }
 
 public class LLMConfig
@@ -94,6 +97,40 @@ public class WebSearchPreset
 {
     public string BaseUrl { get; set; } = "";
     public string Model { get; set; } = "";
+}
+
+public class Live2DConfig
+{
+    public bool Enabled { get; set; } = false;
+    public string ModelFolder { get; set; } = "";
+    public string ModelJsonPath { get; set; } = "";
+    public int WindowWidth { get; set; } = 350;
+    public int WindowHeight { get; set; } = 500;
+    public double Opacity { get; set; } = 1.0;
+    public bool Topmost { get; set; } = true;
+    public bool ClickThrough { get; set; } = false;
+}
+
+public class SyncConfig
+{
+    public bool Enabled { get; set; } = false;
+    public string DeviceName { get; set; } = "FairyAI-PC";
+    public string PairingCode { get; set; } = "";
+    public bool EnableBluetooth { get; set; } = true;
+    public bool EnableLan { get; set; } = true;
+    public bool EnableSignalR { get; set; } = false;
+    public string SignalRUrl { get; set; } = "https://fairyai-sync.azurewebsites.net/hub";
+    public int LanPort { get; set; } = 9876;
+    public int FileServerPort { get; set; } = 9877;
+}
+
+public class NatTraversalConfig
+{
+    public bool Enabled { get; set; } = false;
+    public string Provider { get; set; } = "ngrok";
+    public string AuthToken { get; set; } = "";
+    public string Region { get; set; } = "ap";
+    public string? PublicUrl { get; set; }
 }
 
 public static class ConfigManager
@@ -213,6 +250,13 @@ public static class ConfigManager
     public static (string ModelPath, string ModelName)? GetLocalVisionModelInfo(string modelName)
     {
         return LocalVisionPresets.TryGetValue(modelName, out var info) ? info : null;
+    }
+
+    public static bool HasLive2D()
+    {
+        var config = Load();
+        return config.Live2D.Enabled && !string.IsNullOrWhiteSpace(config.Live2D.ModelJsonPath)
+               && File.Exists(config.Live2D.ModelJsonPath);
     }
 
     /// <summary>Check if fallback LLM is configured.</summary>

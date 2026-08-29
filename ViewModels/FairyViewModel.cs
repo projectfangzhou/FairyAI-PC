@@ -22,6 +22,7 @@ public partial class FairyViewModel : ObservableObject, IDisposable
     private readonly IMiMoTtsService _tts;
     private readonly IAudioPlayerService _audioPlayer;
     private readonly IVisionService _vision;
+    private readonly ILive2DService _live2d;
 
     private FloatingOrbWindow? _orb;
     private DynamicIslandWindow? _island;
@@ -44,7 +45,8 @@ public partial class FairyViewModel : ObservableObject, IDisposable
         IChatHistoryService history, IOpenClawAgentService agent,
         IAppMappingService mapping, IIntentAnalyzer intent,
         ITavilySearchService search, IMiMoTtsService tts,
-        IAudioPlayerService audioPlayer, IVisionService vision)
+        IAudioPlayerService audioPlayer, IVisionService vision,
+        ILive2DService live2d)
     {
         _speech = speech;
         _llm = llm;
@@ -56,6 +58,7 @@ public partial class FairyViewModel : ObservableObject, IDisposable
         _tts = tts;
         _audioPlayer = audioPlayer;
         _vision = vision;
+        _live2d = live2d;
 
         _speech.SpeechRecognized += OnSpeechRecognized;
         _speech.SpeechEnded += OnSpeechEnded;
@@ -74,6 +77,12 @@ public partial class FairyViewModel : ObservableObject, IDisposable
     public async Task InitializeAsync()
     {
         await _history.InitializeAsync();
+
+        // Initialize Live2D if configured
+        if (_live2d.IsEnabled)
+        {
+            _live2d.Initialize();
+        }
     }
 
     // === Orb & Island Control ===
@@ -489,12 +498,21 @@ public partial class FairyViewModel : ObservableObject, IDisposable
                 .Replace("#", "").Replace("\n", " ").Trim();
             if (cleanText.Length > 0)
             {
+                // Trigger Live2D lip sync
+                if (_live2d.IsEnabled)
+                    _live2d.Speak(cleanText);
+
                 var audio = await _tts.SynthesizeAsync(cleanText);
                 if (audio.Length > 0)
                     await _audioPlayer.PlayAsync(audio);
             }
         }
         catch (Exception ex) { Log($"TTS error: {ex.Message}"); }
+        finally
+        {
+            if (_live2d.IsEnabled)
+                _live2d.StopLipSync();
+        }
     }
 
     private List<ChatMessage> GetHistoryMessages()
@@ -512,6 +530,8 @@ public partial class FairyViewModel : ObservableObject, IDisposable
         _speech.AudioLevel -= OnAudioLevel;
         _speech.Dispose();
         _audioPlayer.Stop();
+        if (_live2d.IsEnabled)
+            _live2d.CloseWindow();
     }
 
     private static void Log(string msg)

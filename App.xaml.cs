@@ -78,6 +78,8 @@ public partial class App : Application
             sc.AddSingleton<IEverythingService, EverythingService>();
             sc.AddSingleton<IIntentAnalyzer, IntentAnalyzer>();
             sc.AddSingleton<IVisionService, VisionService>();
+            sc.AddSingleton<ILive2DService, Live2DService>();
+            sc.AddSingleton<ConnectivityManager>();
             sc.AddSingleton<FairyViewModel>();
             _services = sc.BuildServiceProvider();
             Log("DI container built");
@@ -86,6 +88,11 @@ public partial class App : Application
             _vm = _services.GetRequiredService<FairyViewModel>();
             await _vm.InitializeAsync();
             Log("ViewModel initialized");
+
+            // Start connectivity services
+            var syncManager = _services.GetRequiredService<ConnectivityManager>();
+            await syncManager.StartAllAsync();
+            Log("Connectivity services started");
 
             // Windows
             _orb = new FloatingOrbWindow();
@@ -124,6 +131,8 @@ public partial class App : Application
     {
         Log("=== Fairy AI Shutting Down ===");
         _inactivityTimer?.Stop();
+        var syncManager = _services?.GetService<ConnectivityManager>();
+        syncManager?.Dispose();
         _vm?.Dispose();
         base.OnExit(e);
     }

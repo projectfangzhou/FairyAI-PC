@@ -1,3 +1,4 @@
+using System.IO;
 using System.Windows;
 using MyAiAssistant.Services;
 
@@ -6,7 +7,7 @@ namespace MyAiAssistant.Windows;
 public partial class SetupWizardWindow : Window
 {
     private int _currentStep = 1;
-    private const int TotalSteps = 6;
+    private const int TotalSteps = 7;
 
     public SetupWizardWindow()
     {
@@ -61,6 +62,7 @@ public partial class SetupWizardWindow : Window
         TTSPanel.Visibility = _currentStep == 4 ? Visibility.Visible : Visibility.Collapsed;
         FallbackLLMPanel.Visibility = _currentStep == 5 ? Visibility.Visible : Visibility.Collapsed;
         LocalVisionPanel.Visibility = _currentStep == 6 ? Visibility.Visible : Visibility.Collapsed;
+        Live2DPanel.Visibility = _currentStep == 7 ? Visibility.Visible : Visibility.Collapsed;
 
         BackBtn.Visibility = _currentStep > 1 ? Visibility.Visible : Visibility.Collapsed;
         NextBtn.Visibility = _currentStep < TotalSteps ? Visibility.Visible : Visibility.Collapsed;
@@ -75,6 +77,7 @@ public partial class SetupWizardWindow : Window
         4 => "语音合成",
         5 => "备用模型",
         6 => "离线视觉",
+        7 => "Live2D",
         _ => ""
     };
 
@@ -160,6 +163,47 @@ public partial class SetupWizardWindow : Window
             config.LocalVision.ModelPath = localVisionInfo.Value.ModelPath;
         }
 
+        // Set Live2D config
+        config.Live2D = new Live2DConfig
+        {
+            Enabled = EnableLive2DCheckBox.IsChecked ?? false,
+            ModelFolder = Live2DModelPathBox.Text.Trim()
+        };
+
+        // Auto-detect model3.json in the folder
+        if (config.Live2D.Enabled && !string.IsNullOrWhiteSpace(config.Live2D.ModelFolder))
+        {
+            var modelDir = config.Live2D.ModelFolder;
+            if (Directory.Exists(modelDir))
+            {
+                var modelJson = Directory.GetFiles(modelDir, "*.model3.json").FirstOrDefault()
+                              ?? Directory.GetFiles(modelDir, "*.model.json").FirstOrDefault();
+                if (modelJson != null)
+                    config.Live2D.ModelJsonPath = modelJson;
+            }
+        }
+
         ConfigManager.Save(config);
+    }
+
+    private void OnBrowseLive2D(object sender, RoutedEventArgs e)
+    {
+        var dialog = new Microsoft.Win32.OpenFileDialog
+        {
+            Title = "选择 Live2D 模型文件 (model3.json)",
+            Filter = "Live2D Model (*.model3.json;*.model.json)|*.model3.json;*.model.json|All Files (*.*)|*.*"
+        };
+
+        if (dialog.ShowDialog() == true)
+        {
+            // Use the parent directory as model folder
+            var modelPath = dialog.FileName;
+            var modelDir = Path.GetDirectoryName(modelPath);
+            if (modelDir != null)
+            {
+                Live2DModelPathBox.Text = modelDir;
+                EnableLive2DCheckBox.IsChecked = true;
+            }
+        }
     }
 }

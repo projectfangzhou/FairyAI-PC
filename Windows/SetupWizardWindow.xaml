@@ -22,7 +22,7 @@
         </StackPanel>
 
         <!-- Steps indicator -->
-        <TextBlock Grid.Row="1" x:Name="StepIndicator" Text="步骤 1/6: 文本模型" Foreground="#555" FontSize="11" Margin="0,0,0,12"/>
+        <TextBlock Grid.Row="1" x:Name="StepIndicator" Text="步骤 1/7: 文本模型" Foreground="#555" FontSize="11" Margin="0,0,0,12"/>
 
         <!-- Config panels (stacked, only one visible at a time) -->
         <Grid Grid.Row="2">
@@ -133,6 +133,25 @@
                 </ComboBox>
                 <TextBlock Text="说明: 首次使用需下载模型文件，约 2-4GB" Foreground="#555" FontSize="10" Margin="0,4,0,0"/>
                 <TextBlock Text="模型将保存在应用目录的 models 文件夹中" Foreground="#555" FontSize="10" Margin="0,2,0,0"/>
+            </StackPanel>
+
+            <!-- Step 7: Live2D Model -->
+            <StackPanel x:Name="Live2DPanel" Visibility="Collapsed" Margin="0,8">
+                <TextBlock Text="Live2D 虚拟形象 (可选)" Foreground="#aaa" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                <TextBlock Text="启用 Live2D 虚拟角色，支持口型同步和表情动画" Foreground="#555" FontSize="11" Margin="0,0,0,8"/>
+                <CheckBox x:Name="EnableLive2DCheckBox" Content="启用 Live2D 虚拟形象" Foreground="#aaa" FontSize="12" Margin="0,0,0,8"/>
+                <TextBlock Text="模型文件夹路径:" Foreground="#777" FontSize="11" Margin="0,0,0,4"/>
+                <Grid Margin="0,0,0,8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBox x:Name="Live2DModelPathBox" Grid.Column="0" Height="30" Background="#2a2a3e" Foreground="#ddd"
+                             BorderBrush="#444" Padding="8,4" FontSize="12" VerticalContentAlignment="Center"/>
+                    <Button x:Name="BrowseLive2DBtn" Grid.Column="1" Content="浏览..." Width="60" Height="30" Margin="8,0,0,0"
+                            Background="#444" Foreground="#aaa" BorderThickness="0" Click="OnBrowseLive2D"/>
+                </Grid>
+                <TextBlock Text="包含 model3.json 的文件夹，例如: D:\Live2D\haru" Foreground="#555" FontSize="10" Margin="0,2,0,0"/>
             </StackPanel>
         </Grid>
 

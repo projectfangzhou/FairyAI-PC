@@ -1,7 +1,7 @@
 ; Fairy AI Installer Script for Inno Setup
 
 #define MyAppName "Fairy AI"
-#define MyAppVersion "1.2.0"
+#define MyAppVersion "1.3.0"
 #define MyAppPublisher "Fairy AI"
 #define MyAppExeName "MyAiAssistant.exe"
 
@@ -34,6 +34,11 @@ Filename: "powershell.exe"; Parameters: "-ExecutionPolicy Bypass -Command ""irm 
     StatusMsg: "正在安装 .NET 8 运行库..."; Flags: runhidden waituntilterminated; \
     Check: not IsDotNet8Installed
 
+; Auto-download and install WebView2 Runtime if not present (required for Live2D)
+Filename: "powershell.exe"; Parameters: "-ExecutionPolicy Bypass -Command ""irm https://go.microsoft.com/fwlink/p/?LinkId=2124703 -OutFile $env:TEMP\MicrosoftEdgeWebview2Setup.exe; Start-Process $env:TEMP\MicrosoftEdgeWebview2Setup.exe -ArgumentList '/silent /install' -Wait"""; \
+    StatusMsg: "正在安装 WebView2 运行库..."; Flags: runhidden waituntilterminated; \
+    Check: not IsWebView2Installed
+
 ; Show setup complete page
 Filename: "{app}\{#MyAppExeName}"; Parameters: "--setup-complete"; \
     Description: "启动 Fairy AI"; Flags: nowait postinstall skipifsilent
@@ -46,6 +51,13 @@ begin
   Result := Exec('cmd.exe', '/c dotnet --list-runtimes | findstr "8.0"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
 end;
 
+function IsWebView2Installed(): Boolean;
+var
+  ResultCode: Integer;
+begin
+  Result := Exec('cmd.exe', '/c reg query "HKLM\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" /v pv', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) and (ResultCode = 0);
+end;
+
 var
   LLMKeyPage: TInputQueryWizardPage;
   VisionKeyPage: TInputQueryWizardPage;
@@ -53,6 +65,7 @@ var
   TTSKeyPage: TInputQueryWizardPage;
   FallbackLLMKeyPage: TInputQueryWizardPage;
   LocalVisionPage: TInputQueryWizardPage;
+  Live2DPage: TInputQueryWizardPage;
 
 procedure InitializeWizard;
 begin
@@ -109,6 +122,15 @@ begin
   LocalVisionPage.Add('Model name:', False);
   LocalVisionPage.Values[0] := 'no';
   LocalVisionPage.Values[1] := 'llava-phi3';
+
+  Live2DPage := CreateInputQueryPage(LocalVisionPage.ID,
+    'Configure Live2D Avatar (Optional)',
+    'Enable Live2D virtual character',
+    'Supports lip sync and expression animations. Requires a Live2D Cubism model folder.');
+  Live2DPage.Add('Enable Live2D (yes/no):', False);
+  Live2DPage.Add('Model folder path:', False);
+  Live2DPage.Values[0] := 'no';
+  Live2DPage.Values[1] := '';
 end;
 
 procedure SaveConfig;
@@ -116,6 +138,8 @@ var
   ConfigFile: string;
   SL: TStringList;
   EnableLocalVision: string;
+  EnableLive2D: string;
+  Live2DModelFolder: string;
 begin
   ConfigFile := ExpandConstant('{app}\config.json');
   SL := TStringList.Create;
@@ -125,6 +149,15 @@ begin
       EnableLocalVision := 'true'
     else
       EnableLocalVision := 'false';
+
+    if LowerCase(Live2DPage.Values[0]) = 'yes' then
+      EnableLive2D := 'true'
+    else
+      EnableLive2D := 'false';
+
+    Live2DModelFolder := Live2DPage.Values[1];
+    // Convert backslashes to forward slashes for JSON
+    StringReplace(Live2DModelFolder, '\', '/', [rfReplaceAll]);
 
     SL.Add('{');
     SL.Add('  "llm": {');
@@ -150,6 +183,10 @@ begin
     SL.Add('  "localVision": {');
     SL.Add('    "enabled": ' + EnableLocalVision + ',');
     SL.Add('    "modelName": "' + LocalVisionPage.Values[1] + '"');
+    SL.Add('  },');
+    SL.Add('  "live2D": {');
+    SL.Add('    "enabled": ' + EnableLive2D + ',');
+    SL.Add('    "modelFolder": "' + Live2DModelFolder + '"');
     SL.Add('  }');
     SL.Add('}');
     SL.SaveToFile(ConfigFile);
