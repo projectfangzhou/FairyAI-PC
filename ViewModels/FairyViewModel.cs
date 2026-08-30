@@ -523,6 +523,26 @@ public partial class FairyViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private ObservableCollection<ChatMessage> _messages = new();
 
+    [RelayCommand]
+    private async Task ExportConversationAsync()
+    {
+        try
+        {
+            var messages = await _history.LoadAsync(_sessionId);
+            var path = ExportService.ExportWithDialog(messages);
+            if (path != null)
+            {
+                Log($"Conversation exported to: {path}");
+                _island?.ShowResponse($"对话已导出到:\n{path}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Log($"Export error: {ex.Message}");
+            _island?.ShowResponse($"导出失败: {ex.Message}");
+        }
+    }
+
     public void Dispose()
     {
         _speech.SpeechRecognized -= OnSpeechRecognized;

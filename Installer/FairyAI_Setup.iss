@@ -1,7 +1,7 @@
 ; Fairy AI Installer Script for Inno Setup
 
 #define MyAppName "Fairy AI"
-#define MyAppVersion "1.3.0"
+#define MyAppVersion "1.3.2"
 #define MyAppPublisher "Fairy AI"
 #define MyAppExeName "MyAiAssistant.exe"
 
@@ -157,7 +157,7 @@ begin
 
     Live2DModelFolder := Live2DPage.Values[1];
     // Convert backslashes to forward slashes for JSON
-    StringReplace(Live2DModelFolder, '\', '/', [rfReplaceAll]);
+    StringChangeEx(Live2DModelFolder, '\', '/', True);
 
     SL.Add('{');
     SL.Add('  "llm": {');

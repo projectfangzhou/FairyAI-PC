@@ -157,6 +157,68 @@ public class LanSyncService : ISyncService, IFileTransferService
                 response.ContentType = "application/json";
                 await response.OutputStream.WriteAsync(okBuffer, ct);
             }
+            else if (request.HttpMethod == "POST" && request.Url?.LocalPath == "/pair")
+            {
+                // Pairing verification
+                using var reader = new StreamReader(request.InputStream, Encoding.UTF8);
+                var body = await reader.ReadToEndAsync(ct);
+                var doc = JsonDocument.Parse(body);
+                var code = doc.RootElement.TryGetProperty("code", out var c) ? c.GetString() ?? "" : "";
+                var fromDevice = request.Headers["X-From-Device"] ?? "unknown";
+
+                var config = ConfigManager.Load();
+                var storedHash = config.Sync.PairingCode;
+                bool success = false;
+
+                if (string.IsNullOrEmpty(storedHash))
+                {
+                    // No pairing code set — auto-generate and store
+                    var newCode = ConfigManager.GeneratePairingCode();
+                    config.Sync.PairingCode = ConfigManager.HashPairingCode(newCode);
+                    ConfigManager.Save(config);
+                    success = ConfigManager.VerifyPairingCode(code, config.Sync.PairingCode);
+                    Log($"Auto-generated pairing code, verified: {success}, device: {fromDevice}");
+                }
+                else
+                {
+                    success = ConfigManager.VerifyPairingCode(code, storedHash);
+                    Log($"Pairing verification: {success}, device: {fromDevice}");
+                }
+
+                var result = JsonSerializer.Serialize(new { success });
+                var resultBuffer = Encoding.UTF8.GetBytes(result);
+                response.ContentType = "application/json";
+                await response.OutputStream.WriteAsync(resultBuffer, ct);
+            }
+            else if (request.HttpMethod == "POST" && request.Url?.LocalPath == "/sync/config")
+            {
+                // Config sync — send personality + provider info to mobile
+                using var reader = new StreamReader(request.InputStream, Encoding.UTF8);
+                var body = await reader.ReadToEndAsync(ct);
+                var doc = JsonDocument.Parse(body);
+                var code = doc.RootElement.TryGetProperty("code", out var c) ? c.GetString() ?? "" : "";
+                var fromDevice = request.Headers["X-From-Device"] ?? "unknown";
+
+                var config = ConfigManager.Load();
+                bool verified = string.IsNullOrEmpty(config.Sync.PairingCode) ||
+                                ConfigManager.VerifyPairingCode(code, config.Sync.PairingCode);
+
+                if (verified)
+                {
+                    var syncJson = ConfigManager.ExportForSync();
+                    Log($"Config synced to {fromDevice}");
+                    var buffer = Encoding.UTF8.GetBytes(syncJson);
+                    response.ContentType = "application/json";
+                    await response.OutputStream.WriteAsync(buffer, ct);
+                }
+                else
+                {
+                    response.StatusCode = 403;
+                    var errBuffer = Encoding.UTF8.GetBytes("{\"error\":\"pairing required\"}");
+                    response.ContentType = "application/json";
+                    await response.OutputStream.WriteAsync(errBuffer, ct);
+                }
+            }
             else
             {
                 response.StatusCode = 404;

@@ -1,0 +1,69 @@
+<Window x:Class="MyAiAssistant.Windows.OllamaSetupWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="本地模型部署 - Fairy AI"
+        Width="460" Height="520"
+        WindowStartupLocation="CenterScreen"
+        Background="#1a1a2e">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Margin="0,0,0,12">
+            <TextBlock Text="本地模型一键部署" Foreground="#7b68ee" FontSize="18" FontWeight="Bold"/>
+            <TextBlock Text="通过 Ollama 在本地运行 AI 模型，无需 API Key，完全离线" Foreground="#888" FontSize="12" Margin="0,4,0,0"/>
+        </StackPanel>
+
+        <!-- Ollama install status -->
+        <Border Grid.Row="1" Background="#2a2a3e" CornerRadius="8" Padding="12" Margin="0,0,0,12">
+            <StackPanel>
+                <TextBlock x:Name="StatusText" Foreground="#aaa" FontSize="13" TextWrapping="Wrap"/>
+                <Button x:Name="InstallBtn" Content="下载安装 Ollama" Width="180" Height="34" Margin="0,8,0,0"
+                        Background="#7b68ee" Foreground="White" BorderThickness="0" Visibility="Collapsed"
+                        Click="OnInstallClick"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Model list -->
+        <Border Grid.Row="2" Background="#2a2a3e" CornerRadius="8" Padding="12" Margin="0,0,0,12">
+            <StackPanel>
+                <TextBlock Text="选择模型" Foreground="#aaa" FontSize="13" Margin="0,0,0,8"/>
+                <ListBox x:Name="ModelList" Background="#1a1a2e" Foreground="#ddd" BorderThickness="0"
+                         Height="140" SelectionChanged="OnModelSelected">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Margin="4">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="{Binding Name}" Foreground="#e0e0e0" FontWeight="Bold" FontSize="13"/>
+                                    <TextBlock Text="{Binding Size}" Foreground="#7b68ee" FontSize="11" Margin="8,2,0,0"/>
+                                </StackPanel>
+                                <TextBlock Text="{Binding Description}" Foreground="#888" FontSize="11" Margin="0,2,0,0"/>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </StackPanel>
+        </Border>
+
+        <!-- Progress -->
+        <StackPanel Grid.Row="3">
+            <TextBlock x:Name="ProgressText" Foreground="#7b68ee" FontSize="12" TextWrapping="Wrap" MaxHeight="120"/>
+            <ProgressBar x:Name="ProgressBar" Minimum="0" Maximum="100" Height="8" Margin="0,8,0,0"
+                         Background="#333" Foreground="#7b68ee" Visibility="Collapsed"/>
+        </StackPanel>
+
+        <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+            <Button x:Name="DeployBtn" Content="下载并启用" Width="120" Height="36"
+                    Background="#7b68ee" Foreground="White" BorderThickness="0"
+                    IsEnabled="False" Click="OnDeployClick"/>
+            <Button Content="关闭" Width="80" Height="36" Margin="8,0,0,0"
+                    Background="#333" Foreground="#aaa" BorderThickness="0"
+                    Click="OnCloseClick"/>
+        </StackPanel>
+    </Grid>
+</Window>

@@ -1,4 +1,6 @@
 using System.IO;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 
 namespace MyAiAssistant.Services;
@@ -15,6 +17,19 @@ public class AppConfig
     public Live2DConfig Live2D { get; set; } = new();
     public SyncConfig Sync { get; set; } = new();
     public NatTraversalConfig NatTraversal { get; set; } = new();
+    public PersonalityConfig Personality { get; set; } = new();
+}
+
+/// <summary>
+/// AI personality configuration.
+/// </summary>
+public class PersonalityConfig
+{
+    public string Name { get; set; } = "Fairy";
+    public string SystemPrompt { get; set; } = "你是 Fairy，一个温柔、友善的AI助手。你说话亲切自然，像朋友一样和用户交流。你喜欢用轻松的语气回答问题，偶尔会关心用户的状态。";
+    public string AvatarUrl { get; set; } = "";
+    public string Language { get; set; } = "zh-CN";
+    public bool EnableEmotion { get; set; } = true;
 }
 
 public class LLMConfig
@@ -275,5 +290,50 @@ public static class ConfigManager
             string.IsNullOrWhiteSpace(config.FallbackLLM.BaseUrl))
             return null;
         return config.FallbackLLM;
+    }
+
+    /// <summary>
+    /// Generate a 6-digit pairing code for device verification.
+    /// </summary>
+    public static string GeneratePairingCode()
+    {
+        var bytes = new byte[4];
+        RandomNumberGenerator.Fill(bytes);
+        var code = BitConverter.ToUInt32(bytes) % 1000000;
+        return code.ToString("D6");
+    }
+
+    /// <summary>
+    /// Hash a pairing code for secure storage.
+    /// </summary>
+    public static string HashPairingCode(string code)
+    {
+        var saltedBytes = Encoding.UTF8.GetBytes(code + "FairyAI_Salt_2024");
+        var hash = SHA256.HashData(saltedBytes);
+        return Convert.ToHexString(hash);
+    }
+
+    /// <summary>
+    /// Verify a pairing code against a stored hash.
+    /// </summary>
+    public static bool VerifyPairingCode(string code, string storedHash)
+    {
+        return HashPairingCode(code) == storedHash;
+    }
+
+    /// <summary>
+    /// Export config for sync (personality + provider info, no API keys).
+    /// </summary>
+    public static string ExportForSync()
+    {
+        var config = Load();
+        var syncData = new
+        {
+            personality = config.Personality,
+            llm = new { config.LLM.Provider, config.LLM.BaseUrl, config.LLM.Model },
+            tts = new { config.TTS.Provider, config.TTS.BaseUrl, config.TTS.Model, config.TTS.Voice },
+            sync = new { config.Sync.DeviceName }
+        };
+        return JsonSerializer.Serialize(syncData, new JsonSerializerOptions { WriteIndented = true });
     }
 }

@@ -132,7 +132,9 @@ public partial class DynamicIslandWindow : Window
         WaveformPanel.Visibility = Visibility.Collapsed;
         TranscriptionText.Visibility = Visibility.Collapsed;
         ResponseScroll.Visibility = Visibility.Visible;
-        ResponseText.Text = text;
+        ResponseViewer.Markdown = text;
+        ResponseViewer.Pipeline = Services.MarkdownService.Pipeline;
+        ResponseScroll.ScrollToTop();
     }
 
     public void UpdateWaveform(float amplitude)

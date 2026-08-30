@@ -7,9 +7,13 @@ public class GlobalKeyboardHook : IDisposable
 {
     private IntPtr _hookId = IntPtr.Zero;
     private readonly NativeMethods.LowLevelKeyboardProc _proc;
+    private bool _isLeftAltDown;
 
     public event Action? LeftAltPressed;
     public event Action? LeftAltReleased;
+
+    /// <summary>Raised when Alt+Space is pressed (global hotkey to summon/hide).</summary>
+    public event Action? AltSpacePressed;
 
     public GlobalKeyboardHook()
     {
@@ -43,9 +47,22 @@ public class GlobalKeyboardHook : IDisposable
             if (kbd.vkCode == 0xA4)
             {
                 if (msg == NativeMethods.WM_KEYDOWN || msg == NativeMethods.WM_SYSKEYDOWN)
+                {
+                    _isLeftAltDown = true;
                     LeftAltPressed?.Invoke();
+                }
                 else if (msg == NativeMethods.WM_KEYUP || msg == NativeMethods.WM_SYSKEYUP)
+                {
+                    _isLeftAltDown = false;
                     LeftAltReleased?.Invoke();
+                }
+            }
+
+            // Alt+Space global hotkey (VK_SPACE = 0x20)
+            if (kbd.vkCode == 0x20 && _isLeftAltDown &&
+                (msg == NativeMethods.WM_KEYDOWN || msg == NativeMethods.WM_SYSKEYDOWN))
+            {
+                AltSpacePressed?.Invoke();
             }
         }
         return NativeMethods.CallNextHookEx(_hookId, nCode, wParam, lParam);

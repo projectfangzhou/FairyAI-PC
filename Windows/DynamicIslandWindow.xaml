@@ -1,6 +1,7 @@
 <Window x:Class="MyAiAssistant.Windows.DynamicIslandWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:md="clr-namespace:Markdig.Wpf;assembly=Markdig.Wpf"
         Title="Fairy Island"
         WindowStyle="None"
         AllowsTransparency="True"
@@ -64,8 +65,9 @@
                 <!-- Response text (shown during/after response) -->
                 <ScrollViewer x:Name="ResponseScroll" VerticalScrollBarVisibility="Auto"
                               Visibility="Collapsed">
-                    <TextBlock x:Name="ResponseText" Text="" Foreground="#ddd" FontSize="12"
-                               TextWrapping="Wrap" LineHeight="18"/>
+                    <md:MarkdownViewer x:Name="ResponseViewer"
+                                       Foreground="#ddd"
+                                       FontSize="12"/>
                 </ScrollViewer>
 
                 <!-- Transcription text (shown during listening) -->
