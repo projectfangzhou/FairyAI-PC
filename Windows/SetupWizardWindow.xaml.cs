@@ -7,7 +7,7 @@ namespace MyAiAssistant.Windows;
 public partial class SetupWizardWindow : Window
 {
     private int _currentStep = 1;
-    private const int TotalSteps = 13;
+    private const int TotalSteps = 14;
 
     public SetupWizardWindow()
     {
@@ -181,19 +181,55 @@ public partial class SetupWizardWindow : Window
         var model = LLMModelNameBox.Text.Trim();
         var apiKey = LLMApiKeyBox.Text.Trim();
 
-        LLMTestResult.Text = "测试中...";
-        LLMTestResult.Foreground = System.Windows.Media.Brushes.Yellow;
+        ModelTestSummary.Text = "测试中...";
+        ModelTestSummary.Foreground = System.Windows.Media.Brushes.Yellow;
 
         var tester = new ModelTestService();
         var result = await tester.TestLlmAsync(baseUrl, model, apiKey);
 
         _llmTestPassed = result.Success;
-        LLMTestResult.Text = result.Success
+        ModelTestSummary.Text = result.Success
             ? $"✓ {result.Message} ({result.LatencyMs}ms)"
             : $"✗ {result.Message}";
-        LLMTestResult.Foreground = result.Success
+        ModelTestSummary.Foreground = result.Success
             ? System.Windows.Media.Brushes.LimeGreen
             : System.Windows.Media.Brushes.OrangeRed;
+    }
+
+    private async void OnTestAllModels(object sender, RoutedEventArgs e)
+    {
+        ModelTestSummary.Text = "测试中...";
+        ModelTestSummary.Foreground = System.Windows.Media.Brushes.Yellow;
+
+        var tester = new ModelTestService();
+        var results = new List<string>();
+
+        // Test LLM
+        var llmUrl = (LLMEndpointCombo.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Content?.ToString() ?? "";
+        var llmResult = await tester.TestLlmAsync(llmUrl, LLMModelNameBox.Text.Trim(), LLMApiKeyBox.Text.Trim());
+        results.Add($"LLM: {(llmResult.Success ? "✓" : "✗")} {llmResult.Message}");
+
+        // Test Vision
+        var visUrl = (VisionEndpointCombo.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Content?.ToString() ?? "";
+        var visResult = await tester.TestVisionAsync(visUrl, VisionModelNameBox.Text.Trim(), VisionApiKeyBox.Text.Trim());
+        results.Add($"视觉: {(visResult.Success ? "✓" : "✗")} {visResult.Message}");
+
+        // Test TTS (optional)
+        var ttsUrl = (TTSEndpointCombo.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Content?.ToString() ?? "";
+        if (!string.IsNullOrWhiteSpace(TTSModelNameBox.Text))
+        {
+            var ttsResult = await tester.TestTtsAsync(ttsUrl, TTSModelNameBox.Text.Trim(), TTSApiKeyBox.Text.Trim());
+            results.Add($"TTS: {(ttsResult.Success ? "✓" : "✗")} {ttsResult.Message}");
+        }
+
+        var allPassed = llmResult.Success && visResult.Success;
+        ModelTestSummary.Text = string.Join("\n", results);
+        ModelTestSummary.Foreground = allPassed
+            ? System.Windows.Media.Brushes.LimeGreen
+            : System.Windows.Media.Brushes.OrangeRed;
+
+        _llmTestPassed = llmResult.Success;
+        _visionTestPassed = visResult.Success;
     }
 
     private async void OnTestVision(object sender, RoutedEventArgs e)
@@ -202,56 +238,38 @@ public partial class SetupWizardWindow : Window
         var model = VisionModelNameBox.Text.Trim();
         var apiKey = VisionApiKeyBox.Text.Trim();
 
-        VisionTestResult.Text = "测试中...";
-        VisionTestResult.Foreground = System.Windows.Media.Brushes.Yellow;
+        ModelTestSummary.Text = "测试中...";
+        ModelTestSummary.Foreground = System.Windows.Media.Brushes.Yellow;
 
         var tester = new ModelTestService();
         var result = await tester.TestVisionAsync(baseUrl, model, apiKey);
 
         _visionTestPassed = result.Success;
-        VisionTestResult.Text = result.Success
+        ModelTestSummary.Text = result.Success
             ? $"✓ {result.Message} ({result.LatencyMs}ms)"
             : $"✗ {result.Message}";
-        VisionTestResult.Foreground = result.Success
+        ModelTestSummary.Foreground = result.Success
             ? System.Windows.Media.Brushes.LimeGreen
             : System.Windows.Media.Brushes.OrangeRed;
     }
 
     private void OnNextClick(object sender, RoutedEventArgs e)
     {
-        // Validate model name on step 1
-        if (_currentStep == 1)
+        // Validate model names on step 2 (dedicated model name step)
+        if (_currentStep == 2)
         {
             if (string.IsNullOrWhiteSpace(LLMModelNameBox.Text))
             {
-                MessageBox.Show("请填入完整的模型名称！\n\n例如: kimi-k2.6 / gpt-4o-mini / deepseek-chat\n模型名称留空将无法正常调用API。",
+                MessageBox.Show("请填写文本模型名称！\n\n例如: kimi-k2.6 / gpt-4o-mini / deepseek-chat",
                     "模型名称必填", MessageBoxButton.OK, MessageBoxImage.Warning);
+                LLMModelNameBox.Focus();
                 return;
             }
-            if (!_llmTestPassed)
+            if (string.IsNullOrWhiteSpace(VisionModelNameBox.Text))
             {
-                MessageBox.Show("请先测试模型连接！\n\n点击\"测试模型连接\"按钮，通过后才能继续。",
-                    "需要测试", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
-        }
-
-        // Validate model name on step 2 (vision)
-        if (_currentStep == 2 && string.IsNullOrWhiteSpace(VisionModelNameBox.Text))
-        {
-            MessageBox.Show("请填入视觉模型的完整名称！\n\n例如: gpt-4o-mini / gemini-2.0-flash",
-                "模型名称必填", MessageBoxButton.OK, MessageBoxImage.Warning);
-            return;
-        }
-
-        // Validate model name on step 4 (TTS) unless system TTS
-        if (_currentStep == 4)
-        {
-            var ttsProvider = (TTSProviderCombo.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Content?.ToString() ?? "";
-            if (!ttsProvider.Contains("系统") && string.IsNullOrWhiteSpace(TTSModelNameBox.Text))
-            {
-                MessageBox.Show("请填入TTS模型的完整名称！\n\n例如: mi-tts-v2.5 / tts-1\n系统语音可跳过。",
+                MessageBox.Show("请填写视觉模型名称！\n\n例如: gpt-4o-mini / gemini-2.0-flash",
                     "模型名称必填", MessageBoxButton.OK, MessageBoxImage.Warning);
+                VisionModelNameBox.Focus();
                 return;
             }
         }
@@ -288,18 +306,19 @@ public partial class SetupWizardWindow : Window
         StepIndicator.Text = $"步骤 {_currentStep}/{TotalSteps}: {GetStepName(_currentStep)}";
 
         LLMPanel.Visibility = _currentStep == 1 ? Visibility.Visible : Visibility.Collapsed;
-        VisionPanel.Visibility = _currentStep == 2 ? Visibility.Visible : Visibility.Collapsed;
-        ASRPanel.Visibility = _currentStep == 3 ? Visibility.Visible : Visibility.Collapsed;
-        TTSPanel.Visibility = _currentStep == 4 ? Visibility.Visible : Visibility.Collapsed;
-        FallbackLLMPanel.Visibility = _currentStep == 5 ? Visibility.Visible : Visibility.Collapsed;
-        LocalVisionPanel.Visibility = _currentStep == 6 ? Visibility.Visible : Visibility.Collapsed;
-        Live2DPanel.Visibility = _currentStep == 7 ? Visibility.Visible : Visibility.Collapsed;
-        PersonalityPanel.Visibility = _currentStep == 8 ? Visibility.Visible : Visibility.Collapsed;
-        WakeWordPanel.Visibility = _currentStep == 9 ? Visibility.Visible : Visibility.Collapsed;
-        CustomPlatformPanel.Visibility = _currentStep == 10 ? Visibility.Visible : Visibility.Collapsed;
-        SkillsPanel.Visibility = _currentStep == 11 ? Visibility.Visible : Visibility.Collapsed;
-        BiliLoginPanel.Visibility = _currentStep == 12 ? Visibility.Visible : Visibility.Collapsed;
-        RelayPanel.Visibility = _currentStep == 13 ? Visibility.Visible : Visibility.Collapsed;
+        ModelNamePanel.Visibility = _currentStep == 2 ? Visibility.Visible : Visibility.Collapsed;
+        VisionPanel.Visibility = _currentStep == 3 ? Visibility.Visible : Visibility.Collapsed;
+        ASRPanel.Visibility = _currentStep == 4 ? Visibility.Visible : Visibility.Collapsed;
+        TTSPanel.Visibility = _currentStep == 5 ? Visibility.Visible : Visibility.Collapsed;
+        FallbackLLMPanel.Visibility = _currentStep == 6 ? Visibility.Visible : Visibility.Collapsed;
+        LocalVisionPanel.Visibility = _currentStep == 7 ? Visibility.Visible : Visibility.Collapsed;
+        Live2DPanel.Visibility = _currentStep == 8 ? Visibility.Visible : Visibility.Collapsed;
+        PersonalityPanel.Visibility = _currentStep == 9 ? Visibility.Visible : Visibility.Collapsed;
+        WakeWordPanel.Visibility = _currentStep == 10 ? Visibility.Visible : Visibility.Collapsed;
+        CustomPlatformPanel.Visibility = _currentStep == 11 ? Visibility.Visible : Visibility.Collapsed;
+        SkillsPanel.Visibility = _currentStep == 12 ? Visibility.Visible : Visibility.Collapsed;
+        BiliLoginPanel.Visibility = _currentStep == 13 ? Visibility.Visible : Visibility.Collapsed;
+        RelayPanel.Visibility = _currentStep == 14 ? Visibility.Visible : Visibility.Collapsed;
 
         BackBtn.Visibility = _currentStep > 1 ? Visibility.Visible : Visibility.Collapsed;
         NextBtn.Visibility = _currentStep < TotalSteps ? Visibility.Visible : Visibility.Collapsed;
@@ -308,19 +327,20 @@ public partial class SetupWizardWindow : Window
 
     private string GetStepName(int step) => step switch
     {
-        1 => "文本模型",
-        2 => "视觉模型",
-        3 => "语音识别",
-        4 => "语音合成",
-        5 => "备用模型",
-        6 => "离线视觉",
-        7 => "Live2D",
-        8 => "AI人格",
-        9 => "唤醒词与界面",
-        10 => "自定义平台",
-        11 => "AI技能",
-        12 => "账号登录",
-        13 => "中转网站",
+        1 => "文本模型提供商",
+        2 => "★ 模型名称",
+        3 => "视觉模型",
+        4 => "语音识别",
+        5 => "语音合成",
+        6 => "备用模型",
+        7 => "离线视觉",
+        8 => "Live2D",
+        9 => "AI人格",
+        10 => "唤醒词与界面",
+        11 => "自定义平台",
+        12 => "AI技能",
+        13 => "账号登录",
+        14 => "中转网站",
         _ => ""
     };
 

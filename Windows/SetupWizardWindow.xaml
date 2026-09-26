@@ -48,16 +48,47 @@
                 <TextBlock Text="API Key:" Foreground="#777" FontSize="11" Margin="0,0,0,4"/>
                 <TextBox x:Name="LLMApiKeyBox" Width="380" Height="30" Background="#2a2a3e" Foreground="#ddd"
                          BorderBrush="#444" Padding="8,4" FontSize="12"/>
-                <TextBlock Text="★ 模型名称 (必填):" Foreground="#ff6b6b" FontSize="12" FontWeight="Bold" Margin="0,10,0,4"/>
-                <TextBox x:Name="LLMModelNameBox" Width="380" Height="30" Background="#2a2a3e" Foreground="#ddd"
-                         BorderBrush="#ff6b6b" Padding="8,4" FontSize="12"/>
-                <TextBlock Text="必须填写完整模型名，如: kimi-k2.6 / deepseek-chat / gpt-4o-mini / mimo-v2.5" Foreground="#555" FontSize="10" Margin="0,4,0,8"/>
-                <Button x:Name="LLMTestBtn" Content="测试模型连接" Width="160" Height="32" HorizontalAlignment="Left"
-                        Background="#40e0d0" Foreground="#1a1a2e" BorderThickness="0" Click="OnTestLLM"/>
-                <TextBlock x:Name="LLMTestResult" Text="" Foreground="#40e0d0" FontSize="11" Margin="0,6,0,0"/>
+                <TextBlock Text="→ 下一步将填写模型名称" Foreground="#7b68ee" FontSize="11" Margin="0,12,0,0"/>
             </StackPanel>
 
-            <!-- Step 2: Vision -->
+            <!-- Step 2: Model Names (dedicated step) -->
+            <StackPanel x:Name="ModelNamePanel" Visibility="Collapsed" Margin="0,8">
+                <TextBlock Text="★ 填写模型名称 (必填)" Foreground="#ff6b6b" FontSize="18" FontWeight="Bold" Margin="0,0,0,12"/>
+                <TextBlock Text="每个模型都必须填写完整名称，留空将无法使用。" Foreground="#aaa" FontSize="12" Margin="0,0,0,16"/>
+
+                <Border Background="#2a1a1a" BorderBrush="#ff6b6b" BorderThickness="2" Padding="12" Margin="0,0,0,12" CornerRadius="6">
+                    <StackPanel>
+                        <TextBlock Text="文本模型名称 (LLM):" Foreground="#ff6b6b" FontSize="14" FontWeight="Bold" Margin="0,0,0,6"/>
+                        <TextBox x:Name="LLMModelNameBox" Width="360" Height="36" Background="#2a2a3e" Foreground="#ddd"
+                                 BorderBrush="#ff6b6b" Padding="8,4" FontSize="14"/>
+                        <TextBlock Text="例: kimi-k2.6 / deepseek-chat / gpt-4o-mini / mimo-v2.5" Foreground="#888" FontSize="10" Margin="0,4,0,0"/>
+                    </StackPanel>
+                </Border>
+
+                <Border Background="#2a1a1a" BorderBrush="#ff6b6b" BorderThickness="2" Padding="12" Margin="0,0,0,12" CornerRadius="6">
+                    <StackPanel>
+                        <TextBlock Text="视觉模型名称 (Vision):" Foreground="#ff6b6b" FontSize="14" FontWeight="Bold" Margin="0,0,0,6"/>
+                        <TextBox x:Name="VisionModelNameBox" Width="360" Height="36" Background="#2a2a3e" Foreground="#ddd"
+                                 BorderBrush="#ff6b6b" Padding="8,4" FontSize="14"/>
+                        <TextBlock Text="例: gpt-4o-mini / gemini-2.0-flash / mimo-v2.5" Foreground="#888" FontSize="10" Margin="0,4,0,0"/>
+                    </StackPanel>
+                </Border>
+
+                <Border Background="#2a1a1a" BorderBrush="#ff6b6b" BorderThickness="2" Padding="12" Margin="0,0,0,12" CornerRadius="6">
+                    <StackPanel>
+                        <TextBlock Text="语音合成模型名称 (TTS):" Foreground="#ff6b6b" FontSize="14" FontWeight="Bold" Margin="0,0,0,6"/>
+                        <TextBox x:Name="TTSModelNameBox" Width="360" Height="36" Background="#2a2a3e" Foreground="#ddd"
+                                 BorderBrush="#ff6b6b" Padding="8,4" FontSize="14"/>
+                        <TextBlock Text="例: mi-tts-v2.5 / tts-1 (系统语音可留空)" Foreground="#888" FontSize="10" Margin="0,4,0,0"/>
+                    </StackPanel>
+                </Border>
+
+                <Button x:Name="TestAllModelsBtn" Content="测试全部模型连接" Width="220" Height="40" HorizontalAlignment="Left"
+                        Background="#40e0d0" Foreground="#1a1a2e" BorderThickness="0" FontWeight="Bold" FontSize="13" Click="OnTestAllModels"/>
+                <TextBlock x:Name="ModelTestSummary" Text="" Foreground="#40e0d0" FontSize="12" Margin="0,10,0,0"/>
+            </StackPanel>
+
+            <!-- Step 3: Vision -->
             <StackPanel x:Name="VisionPanel" Visibility="Collapsed" Margin="0,8">
                 <TextBlock Text="视觉模型 (屏幕识别)" Foreground="#aaa" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,8"/>
                 <TextBlock Text="选择提供商:" Foreground="#777" FontSize="11" Margin="0,0,0,4"/>
@@ -79,13 +110,7 @@
                 <TextBlock Text="API Key:" Foreground="#777" FontSize="11" Margin="0,0,0,4"/>
                 <TextBox x:Name="VisionApiKeyBox" Width="380" Height="30" Background="#2a2a3e" Foreground="#ddd"
                          BorderBrush="#444" Padding="8,4" FontSize="12"/>
-                <TextBlock Text="★ 模型名称 (必填):" Foreground="#ff6b6b" FontSize="12" FontWeight="Bold" Margin="0,10,0,4"/>
-                <TextBox x:Name="VisionModelNameBox" Width="380" Height="30" Background="#2a2a3e" Foreground="#ddd"
-                         BorderBrush="#ff6b6b" Padding="8,4" FontSize="12"/>
-                <TextBlock Text="必须填写完整模型名，如: gpt-4o-mini / gemini-2.0-flash / mimo-v2.5" Foreground="#555" FontSize="10" Margin="0,4,0,8"/>
-                <Button x:Name="VisionTestBtn" Content="测试视觉模型" Width="160" Height="32" HorizontalAlignment="Left"
-                        Background="#40e0d0" Foreground="#1a1a2e" BorderThickness="0" Click="OnTestVision"/>
-                <TextBlock x:Name="VisionTestResult" Text="" Foreground="#40e0d0" FontSize="11" Margin="0,6,0,0"/>
+                <TextBlock Text="模型名称将在专门的步骤填写" Foreground="#7b68ee" FontSize="11" Margin="0,12,0,0"/>
             </StackPanel>
 
             <!-- Step 3: ASR -->
@@ -126,10 +151,7 @@
                 <TextBlock Text="API Key:" Foreground="#777" FontSize="11" Margin="0,0,0,4"/>
                 <TextBox x:Name="TTSApiKeyBox" Width="380" Height="30" Background="#2a2a3e" Foreground="#ddd"
                          BorderBrush="#444" Padding="8,4" FontSize="12"/>
-                <TextBlock Text="★ 模型名称 (必填):" Foreground="#ff6b6b" FontSize="12" FontWeight="Bold" Margin="0,10,0,4"/>
-                <TextBox x:Name="TTSModelNameBox" Width="380" Height="30" Background="#2a2a3e" Foreground="#ddd"
-                         BorderBrush="#ff6b6b" Padding="8,4" FontSize="12"/>
-                <TextBlock Text="必须填写完整模型名，如: mi-tts-v2.5 / tts-1 (系统语音可留空)" Foreground="#555" FontSize="10" Margin="0,4,0,0"/>
+                <TextBlock Text="模型名称将在专门的步骤填写" Foreground="#7b68ee" FontSize="11" Margin="0,12,0,0"/>
                 <TextBlock Text="音色:" Foreground="#777" FontSize="11" Margin="0,8,0,4"/>
                 <ComboBox x:Name="TTSVoiceCombo" Width="200" Background="#2a2a3e" Foreground="#ddd">
                     <ComboBoxItem Content="茉莉 (温柔)" IsSelected="True"/>
