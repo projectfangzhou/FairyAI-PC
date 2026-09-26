@@ -60,7 +60,7 @@ public static class ApiKeyProtector
         catch (Exception ex)
         {
             Log($"Protect error: {ex.Message}");
-            return plaintext; // fallback: store as-is (should not happen)
+            throw new InvalidOperationException("Failed to protect API key — refusing to store plaintext", ex);
         }
     }
 

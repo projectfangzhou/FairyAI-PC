@@ -17,6 +17,7 @@ public class LanSyncService : ISyncService, IFileTransferService
     private HttpListener? _httpListener;
     private CancellationTokenSource? _cts;
     private bool _isRunning;
+    private bool _lanEnabled; // LAN mode: when true, binds to all interfaces
     // Rate limiting for /pair endpoint
     private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, (int Count, DateTime Reset)> _pairAttempts = new();
     // Paired device sessions
@@ -77,7 +78,11 @@ public class LanSyncService : ISyncService, IFileTransferService
             var port = _config.FileServerPort;
 
             _httpListener = new HttpListener();
-            _httpListener.Prefixes.Add($"http://+:{port}/");
+            // Security: bind localhost by default; LAN mode requires explicit enable
+            if (_lanEnabled)
+                _httpListener.Prefixes.Add($"http://+:{port}/");
+            else
+                _httpListener.Prefixes.Add($"http://localhost:{port}/");
             _httpListener.Start();
             _isRunning = true;
             _localEndpoint = $"http://{GetLocalIPAddress()}:{port}";
@@ -409,7 +414,11 @@ public class LanSyncService : ISyncService, IFileTransferService
         {
             _cts = new CancellationTokenSource();
             _httpListener = new HttpListener();
-            _httpListener.Prefixes.Add($"http://+:{port}/");
+            // Security: bind localhost by default; LAN mode requires explicit enable
+            if (_lanEnabled)
+                _httpListener.Prefixes.Add($"http://+:{port}/");
+            else
+                _httpListener.Prefixes.Add($"http://localhost:{port}/");
             _httpListener.Start();
             _isRunning = true;
             _localEndpoint = $"http://{GetLocalIPAddress()}:{port}";

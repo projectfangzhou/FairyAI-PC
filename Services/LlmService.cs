@@ -48,8 +48,6 @@ public class LlmService : ILlmService
             stream = true
         });
 
-        Log($"LLM Request: endpoint={endpoint}, model={model}, messages={messages.Count}");
-        // Security: don't log full payload (contains user messages)
         Log($"LLM Request: model={model}, messages={messages.Count}");
 
         using var req = new HttpRequestMessage(HttpMethod.Post, endpoint)
