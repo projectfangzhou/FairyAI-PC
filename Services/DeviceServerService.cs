@@ -32,7 +32,8 @@ public class DeviceServerService
         try
         {
             _listener = new HttpListener();
-            _listener.Prefixes.Add($"http://+:{_port}/");
+            // Security: bind to localhost only by default (not all interfaces)
+            _listener.Prefixes.Add($"http://localhost:{_port}/");
             _listener.Start();
             _isRunning = true;
             Log($"Device server started on port {_port}");

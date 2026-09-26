@@ -22,7 +22,7 @@
         </StackPanel>
 
         <!-- Steps indicator -->
-        <TextBlock Grid.Row="1" x:Name="StepIndicator" Text="步骤 1/10: 文本模型" Foreground="#555" FontSize="11" Margin="0,0,0,12"/>
+        <TextBlock Grid.Row="1" x:Name="StepIndicator" Text="步骤 1/13: 文本模型提供商" Foreground="#555" FontSize="11" Margin="0,0,0,12"/>
 
         <!-- Config panels (stacked, only one visible at a time) -->
         <Grid Grid.Row="2">

@@ -376,10 +376,15 @@ public static class ConfigManager
     /// </summary>
     public static string GeneratePairingCode()
     {
-        var bytes = new byte[4];
-        RandomNumberGenerator.Fill(bytes);
-        var code = BitConverter.ToUInt32(bytes) % 1000000;
-        return code.ToString("D6");
+        // Use rejection sampling to eliminate modulo bias
+        uint value;
+        do
+        {
+            var bytes = new byte[4];
+            RandomNumberGenerator.Fill(bytes);
+            value = BitConverter.ToUInt32(bytes);
+        } while (value >= uint.MaxValue - (uint.MaxValue % 1000000));
+        return (value % 1000000).ToString("D6");
     }
 
     /// <summary>
@@ -397,7 +402,10 @@ public static class ConfigManager
     /// </summary>
     public static bool VerifyPairingCode(string code, string storedHash)
     {
-        return HashPairingCode(code) == storedHash;
+        // Use constant-time comparison to prevent timing attacks
+        var computed = Convert.FromHexString(HashPairingCode(code));
+        var stored = Convert.FromHexString(storedHash);
+        return System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(computed, stored);
     }
 
     /// <summary>

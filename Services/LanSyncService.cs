@@ -17,6 +17,38 @@ public class LanSyncService : ISyncService, IFileTransferService
     private HttpListener? _httpListener;
     private CancellationTokenSource? _cts;
     private bool _isRunning;
+    // Rate limiting for /pair endpoint
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, (int Count, DateTime Reset)> _pairAttempts = new();
+    // Paired device sessions
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, DateTime> _pairedDevices = new();
+
+    /// <summary>Check if the requesting device is paired.</summary>
+    private static bool IsDevicePaired(HttpListenerRequest request)
+    {
+        var fromDevice = request.Headers["X-From-Device"] ?? "";
+        if (string.IsNullOrWhiteSpace(fromDevice)) return false;
+        return _pairedDevices.ContainsKey(fromDevice);
+    }
+
+    /// <summary>Rate limit /pair attempts: max 5 per device per 10 minutes.</summary>
+    private static bool CheckPairRateLimit(string fromDevice)
+    {
+        var entry = _pairAttempts.GetOrAdd(fromDevice, _ => (0, DateTime.UtcNow.AddMinutes(10)));
+        if (DateTime.UtcNow > entry.Reset)
+        {
+            _pairAttempts[fromDevice] = (1, DateTime.UtcNow.AddMinutes(10));
+            return true;
+        }
+        if (entry.Count >= 5) return false;
+        _pairAttempts[fromDevice] = (entry.Count + 1, entry.Reset);
+        return true;
+    }
+
+    /// <summary>Mark a device as paired.</summary>
+    private static void MarkPaired(string deviceName)
+    {
+        _pairedDevices[deviceName] = DateTime.UtcNow;
+    }
     private readonly string _logPath;
     private readonly SyncConfig _config;
     private string _localEndpoint = "";
@@ -111,8 +143,20 @@ public class LanSyncService : ISyncService, IFileTransferService
             }
             else if (request.HttpMethod == "POST" && request.Url?.LocalPath == "/send")
             {
-                // Receive file
-                var fileName = request.Headers["X-File-Name"] ?? "unknown";
+                // Auth: require paired device
+                if (!IsDevicePaired(request))
+                {
+                    response.StatusCode = 403;
+                    return;
+                }
+                // Receive file — sanitize filename to prevent path traversal (CVE fix)
+                var rawFileName = request.Headers["X-File-Name"] ?? "unknown";
+                var fileName = Path.GetFileName(rawFileName); // strips directory components
+                if (string.IsNullOrWhiteSpace(fileName) || fileName == ".." || fileName == ".")
+                    fileName = "unknown_" + Guid.NewGuid().ToString("N")[..8];
+                // Additional: reject if still contains invalid chars
+                foreach (var c in Path.GetInvalidFileNameChars())
+                    fileName = fileName.Replace(c, '_');
                 var tempDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "received_files");
                 Directory.CreateDirectory(tempDir);
                 var tempPath = Path.Combine(tempDir, fileName);
@@ -138,6 +182,12 @@ public class LanSyncService : ISyncService, IFileTransferService
             }
             else if (request.HttpMethod == "POST" && request.Url?.LocalPath == "/command")
             {
+                // Auth: require paired device
+                if (!IsDevicePaired(request))
+                {
+                    response.StatusCode = 403;
+                    return;
+                }
                 // Receive command
                 using var reader = new StreamReader(request.InputStream, Encoding.UTF8);
                 var body = await reader.ReadToEndAsync(ct);
@@ -159,12 +209,21 @@ public class LanSyncService : ISyncService, IFileTransferService
             }
             else if (request.HttpMethod == "POST" && request.Url?.LocalPath == "/pair")
             {
+                // Rate limiting: max 5 attempts per device per 10 minutes
+                var fromDevice = request.Headers["X-From-Device"] ?? "unknown";
+                if (!CheckPairRateLimit(fromDevice))
+                {
+                    Log($"Pair rate limited: {fromDevice}");
+                    response.StatusCode = 429;
+                    return;
+                }
+
                 // Pairing verification
                 using var reader = new StreamReader(request.InputStream, Encoding.UTF8);
                 var body = await reader.ReadToEndAsync(ct);
                 var doc = JsonDocument.Parse(body);
                 var code = doc.RootElement.TryGetProperty("code", out var c) ? c.GetString() ?? "" : "";
-                var fromDevice = request.Headers["X-From-Device"] ?? "unknown";
+                var pairFromDevice = request.Headers["X-From-Device"] ?? "unknown";
 
                 var config = ConfigManager.Load();
                 var storedHash = config.Sync.PairingCode;

@@ -13,9 +13,33 @@ public static class ApiKeyProtector
     private const string Entropy = "FairyAI_KeyVault_2026";
     private const int MaxUnlockAttempts = 5;
     private const int LockoutMinutes = 30;
+    // Independent HMAC key — NOT the same as DPAPI entropy
+    private static readonly byte[] HmacKey;
+    private static readonly string HmacKeyPath = Path.Combine(
+        AppDomain.CurrentDomain.BaseDirectory, "hmac.key");
     private static readonly string LockPath = Path.Combine(
         AppDomain.CurrentDomain.BaseDirectory, "keylock.dat");
     private static readonly string LogPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "fairy.log");
+
+    static ApiKeyProtector()
+    {
+        // Generate or load HMAC key (independent from DPAPI entropy)
+        try
+        {
+            if (File.Exists(HmacKeyPath))
+                HmacKey = File.ReadAllBytes(HmacKeyPath);
+            else
+            {
+                HmacKey = RandomNumberGenerator.GetBytes(32);
+                File.WriteAllBytes(HmacKeyPath, HmacKey);
+                File.SetAttributes(HmacKeyPath, FileAttributes.Hidden | FileAttributes.System);
+            }
+        }
+        catch
+        {
+            HmacKey = RandomNumberGenerator.GetBytes(32);
+        }
+    }
 
     /// <summary>Encrypt an API key for storage.</summary>
     public static string Protect(string plaintext)
@@ -144,7 +168,7 @@ public static class ApiKeyProtector
 
     private static byte[] ComputeHmac(byte[] data)
     {
-        using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(Entropy));
+        using var hmac = new HMACSHA256(HmacKey);
         return hmac.ComputeHash(data);
     }
 
