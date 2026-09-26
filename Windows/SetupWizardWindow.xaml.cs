@@ -7,11 +7,165 @@ namespace MyAiAssistant.Windows;
 public partial class SetupWizardWindow : Window
 {
     private int _currentStep = 1;
-    private const int TotalSteps = 7;
+    private const int TotalSteps = 12;
 
     public SetupWizardWindow()
     {
         InitializeComponent();
+        TTSProviderCombo.SelectionChanged += OnTTSProviderChanged;
+        LLMProviderCombo.SelectionChanged += OnLLMProviderChanged;
+        VisionProviderCombo.SelectionChanged += OnVisionProviderChanged;
+        EnableCustomPlatformCheckBox.Checked += (_, _) => UpdateCustomPlatformVisibility(true);
+        EnableCustomPlatformCheckBox.Unchecked += (_, _) => UpdateCustomPlatformVisibility(false);
+    }
+
+    private void OnBiliGetQR(object sender, RoutedEventArgs e)
+    {
+        // Generate Bilibili QR code URL for login
+        BiliQRCodePlaceholder.Text = "二维码生成中...\n请打开B站APP扫码";
+        BiliLoginStatus.Text = "请使用B站APP扫描二维码登录";
+
+        // Save a placeholder for Bilibili login state
+        // In production, this would call Bilibili's QR login API
+        var biliPath = System.IO.Path.Combine(
+            AppDomain.CurrentDomain.BaseDirectory, "bilibili_login.json");
+        System.IO.File.WriteAllText(biliPath, System.Text.Json.JsonSerializer.Serialize(new
+        {
+            status = "pending",
+            created = System.DateTime.Now
+        }));
+
+        BiliQRCodePlaceholder.Text = "┌─────────────────┐\n" +
+            "│  ■■■  ■    ■■■  │\n" +
+            "│  ■  ■  ■ ■  ■  │\n" +
+            "│  ■■■  ■■■  ■■■  │\n" +
+            "│  ■  ■    ■  ■  │\n" +
+            "│  ■■■  ■    ■■■  │\n" +
+            "└─────────────────┘\n" +
+            "打开B站APP扫码";
+    }
+
+    private void OnLLMProviderChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        var provider = (LLMProviderCombo.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Content?.ToString() ?? "";
+        LLMEndpointCombo.Items.Clear();
+        var endpoints = provider switch
+        {
+            "Kimi (月之暗面)" => new[] { "https://api.moonshot.cn/v1/chat/completions" },
+            "DeepSeek" => new[] { "https://api.deepseek.com/v1/chat/completions" },
+            "MiMo (小米)" => new[] { "https://api.xiaomimimo.com/v1/chat/completions" },
+            "MiMo TokenPlan (小米)" => new[] { "https://token-plan-cn.xiaomimimo.com/v1/chat/completions" },
+            "OpenAI" => new[] { "https://api.openai.com/v1/chat/completions" },
+            "OpenRouter" => new[] { "https://openrouter.ai/api/v1/chat/completions" },
+            "Ollama (本地)" => new[] { "http://localhost:11434/v1/chat/completions" },
+            _ => new[] { "" }
+        };
+        foreach (var ep in endpoints) LLMEndpointCombo.Items.Add(new System.Windows.Controls.ComboBoxItem { Content = ep });
+        if (LLMEndpointCombo.Items.Count > 0) LLMEndpointCombo.SelectedIndex = 0;
+
+        LLMModelNameBox.Text = provider switch
+        {
+            "Kimi (月之暗面)" => "kimi-k2.6",
+            "DeepSeek" => "deepseek-chat",
+            "MiMo (小米)" or "MiMo TokenPlan (小米)" => "mimo-v2.5",
+            "OpenAI" => "gpt-4o-mini",
+            "OpenRouter" => "openai/gpt-4o-mini",
+            "Ollama (本地)" => "llama3",
+            _ => ""
+        };
+    }
+
+    private void OnVisionProviderChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        var provider = (VisionProviderCombo.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Content?.ToString() ?? "";
+        VisionEndpointCombo.Items.Clear();
+        var endpoints = provider switch
+        {
+            "OpenAI (GPT-4o)" => new[] { "https://api.openai.com/v1/chat/completions" },
+            "Google Gemini" => new[] { "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions" },
+            "DeepSeek" => new[] { "https://api.deepseek.com/v1/chat/completions" },
+            "MiMo (小米)" => new[] { "https://api.xiaomimimo.com/v1/chat/completions" },
+            "MiMo TokenPlan (小米)" => new[] { "https://token-plan-cn.xiaomimimo.com/v1/chat/completions" },
+            "OpenRouter" => new[] { "https://openrouter.ai/api/v1/chat/completions" },
+            "Azure OpenAI" => new[] { "https://{resource}.openai.azure.com/openai/deployments/{deployment}/chat/completions" },
+            _ => new[] { "" }
+        };
+        foreach (var ep in endpoints) VisionEndpointCombo.Items.Add(new System.Windows.Controls.ComboBoxItem { Content = ep });
+        if (VisionEndpointCombo.Items.Count > 0) VisionEndpointCombo.SelectedIndex = 0;
+
+        VisionModelNameBox.Text = provider switch
+        {
+            "OpenAI (GPT-4o)" => "gpt-4o-mini",
+            "Google Gemini" => "gemini-2.0-flash",
+            "DeepSeek" => "deepseek-chat",
+            "MiMo (小米)" or "MiMo TokenPlan (小米)" => "mimo-v2.5",
+            "OpenRouter" => "openai/gpt-4o-mini",
+            _ => ""
+        };
+    }
+
+    private void OnTTSProviderChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        var selected = (TTSProviderCombo.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Content?.ToString() ?? "";
+
+        TTSEndpointCombo.Items.Clear();
+        var endpoints = selected switch
+        {
+            "MiMo-V2.5-TTS" => new[] { "https://api.xiaomimimo.com/v1/audio/speech" },
+            "MiMo TokenPlan (小米)" => new[] { "https://token-plan-cn.xiaomimimo.com/v1/audio/speech" },
+            "OpenAI TTS" => new[] { "https://api.openai.com/v1/audio/speech" },
+            "Microsoft Azure TTS" => new[] { "https://{region}.tts.speech.microsoft.com/cognitiveservice/v1" },
+            "Google TTS" => new[] { "https://texttospeech.googleapis.com/v1/text:synthesize" },
+            "GPT-SoVITS (语音克隆)" => new[] { "http://localhost:9880/tts" },
+            "OpenRouter" => new[] { "https://openrouter.ai/api/v1/audio/speech" },
+            _ => new[] { "" }
+        };
+        foreach (var ep in endpoints) TTSEndpointCombo.Items.Add(new System.Windows.Controls.ComboBoxItem { Content = ep });
+        if (TTSEndpointCombo.Items.Count > 0) TTSEndpointCombo.SelectedIndex = 0;
+
+        TTSModelNameBox.Text = selected switch
+        {
+            "MiMo-V2.5-TTS" or "MiMo TokenPlan (小米)" => "mi-tts-v2.5",
+            "OpenAI TTS" => "tts-1",
+            "OpenRouter" => "openai/tts-1",
+            _ => ""
+        };
+
+        var isGptSoVits = selected.Contains("GPT-SoVITS");
+        var visibility = isGptSoVits ? Visibility.Visible : Visibility.Collapsed;
+        VoiceCloneHint.Visibility = visibility;
+        VoiceCloneFileHint.Visibility = visibility;
+        VoiceCloneFileGrid.Visibility = visibility;
+        VoiceClonePromptHint.Visibility = visibility;
+        VoiceClonePromptTextBox.Visibility = visibility;
+        VoiceCloneLangHint.Visibility = visibility;
+        VoiceCloneLangCombo.Visibility = visibility;
+    }
+
+    private void UpdateCustomPlatformVisibility(bool visible)
+    {
+        var v = visible ? Visibility.Visible : Visibility.Collapsed;
+        CustomTextUrlHint.Visibility = v;
+        CustomTextBaseUrlBox.Visibility = v;
+        CustomTextModelHint.Visibility = v;
+        CustomTextModelBox.Visibility = v;
+        CustomMultimodalHint.Visibility = v;
+        CustomMultimodalBaseUrlBox.Visibility = v;
+        CustomMultimodalModelBox.Visibility = v;
+    }
+
+    private void OnBrowseVoiceClone(object sender, RoutedEventArgs e)
+    {
+        var dialog = new Microsoft.Win32.OpenFileDialog
+        {
+            Title = "选择参考音频文件 (用于GPT-SoVITS语音克隆)",
+            Filter = "音频文件 (*.wav;*.mp3;*.ogg;*.flac)|*.wav;*.mp3;*.ogg;*.flac|All Files (*.*)|*.*"
+        };
+
+        if (dialog.ShowDialog() == true)
+        {
+            VoiceCloneAudioPathBox.Text = dialog.FileName;
+        }
     }
 
     private void OnBackClick(object sender, RoutedEventArgs e)
@@ -23,8 +177,90 @@ public partial class SetupWizardWindow : Window
         }
     }
 
+    private bool _llmTestPassed;
+    private bool _visionTestPassed;
+
+    private async void OnTestLLM(object sender, RoutedEventArgs e)
+    {
+        var baseUrl = (LLMEndpointCombo.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Content?.ToString() ?? "";
+        var model = LLMModelNameBox.Text.Trim();
+        var apiKey = LLMApiKeyBox.Text.Trim();
+
+        LLMTestResult.Text = "测试中...";
+        LLMTestResult.Foreground = System.Windows.Media.Brushes.Yellow;
+
+        var tester = new ModelTestService();
+        var result = await tester.TestLlmAsync(baseUrl, model, apiKey);
+
+        _llmTestPassed = result.Success;
+        LLMTestResult.Text = result.Success
+            ? $"✓ {result.Message} ({result.LatencyMs}ms)"
+            : $"✗ {result.Message}";
+        LLMTestResult.Foreground = result.Success
+            ? System.Windows.Media.Brushes.LimeGreen
+            : System.Windows.Media.Brushes.OrangeRed;
+    }
+
+    private async void OnTestVision(object sender, RoutedEventArgs e)
+    {
+        var baseUrl = (VisionEndpointCombo.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Content?.ToString() ?? "";
+        var model = VisionModelNameBox.Text.Trim();
+        var apiKey = VisionApiKeyBox.Text.Trim();
+
+        VisionTestResult.Text = "测试中...";
+        VisionTestResult.Foreground = System.Windows.Media.Brushes.Yellow;
+
+        var tester = new ModelTestService();
+        var result = await tester.TestVisionAsync(baseUrl, model, apiKey);
+
+        _visionTestPassed = result.Success;
+        VisionTestResult.Text = result.Success
+            ? $"✓ {result.Message} ({result.LatencyMs}ms)"
+            : $"✗ {result.Message}";
+        VisionTestResult.Foreground = result.Success
+            ? System.Windows.Media.Brushes.LimeGreen
+            : System.Windows.Media.Brushes.OrangeRed;
+    }
+
     private void OnNextClick(object sender, RoutedEventArgs e)
     {
+        // Validate model name on step 1
+        if (_currentStep == 1)
+        {
+            if (string.IsNullOrWhiteSpace(LLMModelNameBox.Text))
+            {
+                MessageBox.Show("请填入完整的模型名称！\n\n例如: kimi-k2.6 / gpt-4o-mini / deepseek-chat\n模型名称留空将无法正常调用API。",
+                    "模型名称必填", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+            if (!_llmTestPassed)
+            {
+                MessageBox.Show("请先测试模型连接！\n\n点击\"测试模型连接\"按钮，通过后才能继续。",
+                    "需要测试", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+        }
+
+        // Validate model name on step 2 (vision)
+        if (_currentStep == 2 && string.IsNullOrWhiteSpace(VisionModelNameBox.Text))
+        {
+            MessageBox.Show("请填入视觉模型的完整名称！\n\n例如: gpt-4o-mini / gemini-2.0-flash",
+                "模型名称必填", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        // Validate model name on step 4 (TTS) unless system TTS
+        if (_currentStep == 4)
+        {
+            var ttsProvider = (TTSProviderCombo.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Content?.ToString() ?? "";
+            if (!ttsProvider.Contains("系统") && string.IsNullOrWhiteSpace(TTSModelNameBox.Text))
+            {
+                MessageBox.Show("请填入TTS模型的完整名称！\n\n例如: mi-tts-v2.5 / tts-1\n系统语音可跳过。",
+                    "模型名称必填", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+        }
+
         if (_currentStep < TotalSteps)
         {
             _currentStep++;
@@ -63,6 +299,11 @@ public partial class SetupWizardWindow : Window
         FallbackLLMPanel.Visibility = _currentStep == 5 ? Visibility.Visible : Visibility.Collapsed;
         LocalVisionPanel.Visibility = _currentStep == 6 ? Visibility.Visible : Visibility.Collapsed;
         Live2DPanel.Visibility = _currentStep == 7 ? Visibility.Visible : Visibility.Collapsed;
+        PersonalityPanel.Visibility = _currentStep == 8 ? Visibility.Visible : Visibility.Collapsed;
+        WakeWordPanel.Visibility = _currentStep == 9 ? Visibility.Visible : Visibility.Collapsed;
+        CustomPlatformPanel.Visibility = _currentStep == 10 ? Visibility.Visible : Visibility.Collapsed;
+        SkillsPanel.Visibility = _currentStep == 11 ? Visibility.Visible : Visibility.Collapsed;
+        BiliLoginPanel.Visibility = _currentStep == 12 ? Visibility.Visible : Visibility.Collapsed;
 
         BackBtn.Visibility = _currentStep > 1 ? Visibility.Visible : Visibility.Collapsed;
         NextBtn.Visibility = _currentStep < TotalSteps ? Visibility.Visible : Visibility.Collapsed;
@@ -78,6 +319,11 @@ public partial class SetupWizardWindow : Window
         5 => "备用模型",
         6 => "离线视觉",
         7 => "Live2D",
+        8 => "AI人格",
+        9 => "唤醒词与界面",
+        10 => "自定义平台",
+        11 => "AI技能",
+        12 => "B站登录",
         _ => ""
     };
 
@@ -88,12 +334,14 @@ public partial class SetupWizardWindow : Window
             LLM = new LLMConfig
             {
                 Provider = (LLMProviderCombo.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Content?.ToString() ?? "Kimi",
-                ApiKey = LLMApiKeyBox.Text.Trim()
+                ApiKey = LLMApiKeyBox.Text.Trim(),
+                Model = LLMModelNameBox.Text.Trim()
             },
             Vision = new VisionConfig
             {
                 Provider = (VisionProviderCombo.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Content?.ToString() ?? "OpenAI",
-                ApiKey = VisionApiKeyBox.Text.Trim()
+                ApiKey = VisionApiKeyBox.Text.Trim(),
+                Model = VisionModelNameBox.Text.Trim()
             },
             ASR = new ASRConfig
             {
@@ -104,7 +352,11 @@ public partial class SetupWizardWindow : Window
             {
                 Provider = (TTSProviderCombo.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Content?.ToString() ?? "MiMo",
                 ApiKey = TTSApiKeyBox.Text.Trim(),
-                Voice = (TTSVoiceCombo.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Content?.ToString() ?? "茉莉"
+                Model = TTSModelNameBox.Text.Trim(),
+                Voice = (TTSVoiceCombo.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Content?.ToString() ?? "茉莉",
+                VoiceCloneAudioPath = VoiceCloneAudioPathBox.Text.Trim(),
+                VoiceClonePromptText = VoiceClonePromptTextBox.Text.Trim(),
+                VoiceCloneLang = (VoiceCloneLangCombo.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Content?.ToString() ?? "zh"
             },
             FallbackLLM = new LLMConfig
             {
@@ -118,21 +370,12 @@ public partial class SetupWizardWindow : Window
             }
         };
 
-        // Set base URL and model based on provider
-        var llmInfo = ConfigManager.GetProviderInfo(config.LLM.Provider);
-        if (llmInfo.HasValue)
-        {
-            config.LLM.BaseUrl = llmInfo.Value.BaseUrl;
-            config.LLM.Model = llmInfo.Value.Model;
-        }
+        // Use user-selected endpoint from dropdown (not preset lookup)
+        config.LLM.BaseUrl = (LLMEndpointCombo.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Content?.ToString() ?? "";
+        config.Vision.BaseUrl = (VisionEndpointCombo.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Content?.ToString() ?? "";
+        config.TTS.BaseUrl = (TTSEndpointCombo.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Content?.ToString() ?? "";
 
-        // Set vision base URL and model based on provider
-        var visionPreset = ConfigManager.GetVisionProviderInfo(config.Vision.Provider);
-        if (visionPreset.HasValue)
-        {
-            config.Vision.BaseUrl = visionPreset.Value.BaseUrl;
-            config.Vision.Model = visionPreset.Value.Model;
-        }
+        // Vision base URL already set from dropdown above
 
         // Set ASR base URL
         var asrPreset = ConfigManager.GetAsrProviderInfo(config.ASR.Provider);
@@ -141,19 +384,15 @@ public partial class SetupWizardWindow : Window
             config.ASR.BaseUrl = asrPreset.Value.BaseUrl;
         }
 
-        // Set TTS base URL
-        var ttsPreset = ConfigManager.GetTtsProviderInfo(config.TTS.Provider);
-        if (ttsPreset.HasValue)
-        {
-            config.TTS.BaseUrl = ttsPreset.Value.BaseUrl;
-        }
+        // TTS base URL already set from dropdown above
 
-        // Set fallback LLM base URL and model
+        // Set fallback LLM base URL (keep user-entered model name)
         var fallbackLLMInfo = ConfigManager.GetProviderInfo(config.FallbackLLM.Provider);
         if (fallbackLLMInfo.HasValue)
         {
             config.FallbackLLM.BaseUrl = fallbackLLMInfo.Value.BaseUrl;
-            config.FallbackLLM.Model = fallbackLLMInfo.Value.Model;
+            if (string.IsNullOrWhiteSpace(config.FallbackLLM.Model))
+                config.FallbackLLM.Model = fallbackLLMInfo.Value.Model;
         }
 
         // Set local vision model path
@@ -161,6 +400,64 @@ public partial class SetupWizardWindow : Window
         if (localVisionInfo.HasValue)
         {
             config.LocalVision.ModelPath = localVisionInfo.Value.ModelPath;
+        }
+
+        // Personality
+        config.Personality.SystemPrompt = PersonalityPromptBox.Text.Trim();
+        config.Personality.IsGameCharacter = IsGameCharacterCheckBox.IsChecked ?? false;
+        config.Personality.GameCharacterName = GameCharacterNameBox.Text.Trim();
+
+        // Wake word & UI
+        config.WakeWord.WakeWord = WakeWordBox.Text.Trim();
+        config.IslandUI.ShowInputBox = ShowInputBoxCheckBox.IsChecked ?? true;
+        config.IslandUI.InputBoxPosition = (InputBoxPositionCombo.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Content?.ToString() switch
+        {
+            "左下" => "left-bottom",
+            "中下" => "center-bottom",
+            _ => "right-bottom"
+        };
+        config.Context.Enabled = EnableContextCompressionCheckBox.IsChecked ?? true;
+        config.Performance.Mode = (PerformanceModeCombo.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Content?.ToString()?.ToLowerInvariant() ?? "balanced";
+
+        // Custom platform
+        config.CustomPlatform.Enabled = EnableCustomPlatformCheckBox.IsChecked ?? false;
+        if (config.CustomPlatform.Enabled)
+        {
+            config.CustomPlatform.TextBaseUrl = CustomTextBaseUrlBox.Text.Trim();
+            config.CustomPlatform.TextModel = CustomTextModelBox.Text.Trim();
+            config.CustomPlatform.MultimodalBaseUrl = CustomMultimodalBaseUrlBox.Text.Trim();
+            config.CustomPlatform.MultimodalModel = CustomMultimodalModelBox.Text.Trim();
+            if (!string.IsNullOrWhiteSpace(config.CustomPlatform.MultimodalModel))
+                config.CustomPlatform.MultimodalEnabled = true;
+        }
+
+        // Skills selection
+        var selectedSkills = new List<string>();
+        if (SkillSummarize.IsChecked == true) selectedSkills.Add("summarize");
+        if (SkillTranslate.IsChecked == true) selectedSkills.Add("translate");
+        if (SkillCode.IsChecked == true) selectedSkills.Add("code");
+        if (SkillEmail.IsChecked == true) selectedSkills.Add("email");
+        if (SkillBrainstorm.IsChecked == true) selectedSkills.Add("brainstorm");
+        if (SkillAnalyze.IsChecked == true) selectedSkills.Add("analyze");
+
+        // Deploy selected skills
+        var skillsDir = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "skills");
+        var targetSkillsDir = System.IO.Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "FairyAI", "skills");
+        System.IO.Directory.CreateDirectory(targetSkillsDir);
+
+        foreach (var skill in selectedSkills)
+        {
+            var src = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory,
+                "BlenderAddon", "skills", skill + ".md");
+            // Also check installer skills folder
+            var installerSkills = System.IO.Path.Combine(
+                AppDomain.CurrentDomain.BaseDirectory, "skills", skill + ".md");
+            if (System.IO.File.Exists(installerSkills))
+            {
+                System.IO.File.Copy(installerSkills,
+                    System.IO.Path.Combine(targetSkillsDir, skill + ".md"), overwrite: true);
+            }
         }
 
         // Set Live2D config

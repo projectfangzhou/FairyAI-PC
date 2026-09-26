@@ -18,7 +18,7 @@ public class FunctionCallingService
     private readonly ToolRegistry _tools;
     private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(60) };
     private static readonly string LogPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "fairy.log");
-    private const int MaxToolRounds = 3;
+    private const int MaxToolRounds = 12;
 
     public bool HasTools => _tools.GetAll().Any();
 

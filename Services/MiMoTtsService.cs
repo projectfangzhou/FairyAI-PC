@@ -25,13 +25,40 @@ public class MiMoTtsService : IMiMoTtsService
 
         Log($"TTS: synthesizing '{text[..Math.Min(40, text.Length)]}...'");
 
-        // Try MiMo TTS API first
-        var result = await TryMiMoTtsAsync(text);
-        if (result.Length > 0) return result;
+        var config = ConfigManager.Load();
+        var provider = config.TTS.Provider ?? "MiMo";
+
+        // Route to provider
+        if (provider.Contains("GPT-SoVITS", StringComparison.OrdinalIgnoreCase))
+        {
+            var gptResult = await TryGptSoVitsAsync(text);
+            if (gptResult.Length > 0) return gptResult;
+            Log("TTS: GPT-SoVITS failed, using system TTS fallback");
+        }
+        else
+        {
+            // Try MiMo TTS API
+            var result = await TryMiMoTtsAsync(text);
+            if (result.Length > 0) return result;
+        }
 
         // Fallback to system TTS
-        Log("TTS: MiMo failed, using system TTS fallback");
+        Log("TTS: all providers failed, using system TTS fallback");
         return await SystemTtsFallbackAsync(text);
+    }
+
+    private async Task<byte[]> TryGptSoVitsAsync(string text)
+    {
+        try
+        {
+            var gptService = new GptSoVitsTtsService();
+            return await gptService.SynthesizeAsync(text);
+        }
+        catch (Exception ex)
+        {
+            Log($"TTS GPT-SoVITS exception: {ex.Message}");
+            return Array.Empty<byte>();
+        }
     }
 
     private async Task<byte[]> TryMiMoTtsAsync(string text)

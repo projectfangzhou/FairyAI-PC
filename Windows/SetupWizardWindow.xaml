@@ -22,7 +22,7 @@
         </StackPanel>
 
         <!-- Steps indicator -->
-        <TextBlock Grid.Row="1" x:Name="StepIndicator" Text="步骤 1/7: 文本模型" Foreground="#555" FontSize="11" Margin="0,0,0,12"/>
+        <TextBlock Grid.Row="1" x:Name="StepIndicator" Text="步骤 1/10: 文本模型" Foreground="#555" FontSize="11" Margin="0,0,0,12"/>
 
         <!-- Config panels (stacked, only one visible at a time) -->
         <Grid Grid.Row="2">
@@ -30,34 +30,62 @@
             <StackPanel x:Name="LLMPanel" Visibility="Visible" Margin="0,8">
                 <TextBlock Text="LLM 文本模型" Foreground="#aaa" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,8"/>
                 <TextBlock Text="选择提供商:" Foreground="#777" FontSize="11" Margin="0,0,0,4"/>
-                <ComboBox x:Name="LLMProviderCombo" Width="200" Margin="0,0,0,12" Background="#2a2a3e" Foreground="#ddd">
+                <ComboBox x:Name="LLMProviderCombo" Width="220" Margin="0,0,0,8" Background="#2a2a3e" Foreground="#ddd"
+                          SelectionChanged="OnLLMProviderChanged">
                     <ComboBoxItem Content="Kimi (月之暗面)" IsSelected="True"/>
                     <ComboBoxItem Content="DeepSeek"/>
                     <ComboBoxItem Content="MiMo (小米)"/>
+                    <ComboBoxItem Content="MiMo TokenPlan (小米)"/>
                     <ComboBoxItem Content="OpenAI"/>
+                    <ComboBoxItem Content="OpenRouter"/>
                     <ComboBoxItem Content="Ollama (本地)"/>
+                    <ComboBoxItem Content="自定义"/>
+                </ComboBox>
+                <TextBlock Text="API 端点 (选择，无需手填):" Foreground="#777" FontSize="11" Margin="0,4,0,4"/>
+                <ComboBox x:Name="LLMEndpointCombo" Width="380" Margin="0,0,0,8" Background="#2a2a3e" Foreground="#ddd">
+                    <ComboBoxItem Content="https://api.moonshot.cn/v1/chat/completions" IsSelected="True"/>
                 </ComboBox>
                 <TextBlock Text="API Key:" Foreground="#777" FontSize="11" Margin="0,0,0,4"/>
                 <TextBox x:Name="LLMApiKeyBox" Width="380" Height="30" Background="#2a2a3e" Foreground="#ddd"
                          BorderBrush="#444" Padding="8,4" FontSize="12"/>
-                <TextBlock x:Name="LLMHint" Text="从对应平台获取 API Key" Foreground="#555" FontSize="10" Margin="0,4,0,0"/>
+                <TextBlock Text="★ 模型名称 (必填):" Foreground="#ff6b6b" FontSize="12" FontWeight="Bold" Margin="0,10,0,4"/>
+                <TextBox x:Name="LLMModelNameBox" Width="380" Height="30" Background="#2a2a3e" Foreground="#ddd"
+                         BorderBrush="#ff6b6b" Padding="8,4" FontSize="12"/>
+                <TextBlock Text="必须填写完整模型名，如: kimi-k2.6 / deepseek-chat / gpt-4o-mini / mimo-v2.5" Foreground="#555" FontSize="10" Margin="0,4,0,8"/>
+                <Button x:Name="LLMTestBtn" Content="测试模型连接" Width="160" Height="32" HorizontalAlignment="Left"
+                        Background="#40e0d0" Foreground="#1a1a2e" BorderThickness="0" Click="OnTestLLM"/>
+                <TextBlock x:Name="LLMTestResult" Text="" Foreground="#40e0d0" FontSize="11" Margin="0,6,0,0"/>
             </StackPanel>
 
             <!-- Step 2: Vision -->
             <StackPanel x:Name="VisionPanel" Visibility="Collapsed" Margin="0,8">
                 <TextBlock Text="视觉模型 (屏幕识别)" Foreground="#aaa" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,8"/>
                 <TextBlock Text="选择提供商:" Foreground="#777" FontSize="11" Margin="0,0,0,4"/>
-                <ComboBox x:Name="VisionProviderCombo" Width="200" Margin="0,0,0,12" Background="#2a2a3e" Foreground="#ddd">
+                <ComboBox x:Name="VisionProviderCombo" Width="220" Margin="0,0,0,8" Background="#2a2a3e" Foreground="#ddd"
+                          SelectionChanged="OnVisionProviderChanged">
                     <ComboBoxItem Content="OpenAI (GPT-4o)" IsSelected="True"/>
                     <ComboBoxItem Content="Google Gemini"/>
                     <ComboBoxItem Content="DeepSeek"/>
                     <ComboBoxItem Content="MiMo (小米)"/>
+                    <ComboBoxItem Content="MiMo TokenPlan (小米)"/>
+                    <ComboBoxItem Content="OpenRouter"/>
                     <ComboBoxItem Content="Azure OpenAI"/>
+                    <ComboBoxItem Content="自定义"/>
+                </ComboBox>
+                <TextBlock Text="API 端点 (选择，无需手填):" Foreground="#777" FontSize="11" Margin="0,4,0,4"/>
+                <ComboBox x:Name="VisionEndpointCombo" Width="380" Margin="0,0,0,8" Background="#2a2a3e" Foreground="#ddd">
+                    <ComboBoxItem Content="https://api.openai.com/v1/chat/completions" IsSelected="True"/>
                 </ComboBox>
                 <TextBlock Text="API Key:" Foreground="#777" FontSize="11" Margin="0,0,0,4"/>
                 <TextBox x:Name="VisionApiKeyBox" Width="380" Height="30" Background="#2a2a3e" Foreground="#ddd"
                          BorderBrush="#444" Padding="8,4" FontSize="12"/>
-                <TextBlock x:Name="VisionHint" Text="用于识别屏幕内容，可选配置" Foreground="#555" FontSize="10" Margin="0,4,0,0"/>
+                <TextBlock Text="★ 模型名称 (必填):" Foreground="#ff6b6b" FontSize="12" FontWeight="Bold" Margin="0,10,0,4"/>
+                <TextBox x:Name="VisionModelNameBox" Width="380" Height="30" Background="#2a2a3e" Foreground="#ddd"
+                         BorderBrush="#ff6b6b" Padding="8,4" FontSize="12"/>
+                <TextBlock Text="必须填写完整模型名，如: gpt-4o-mini / gemini-2.0-flash / mimo-v2.5" Foreground="#555" FontSize="10" Margin="0,4,0,8"/>
+                <Button x:Name="VisionTestBtn" Content="测试视觉模型" Width="160" Height="32" HorizontalAlignment="Left"
+                        Background="#40e0d0" Foreground="#1a1a2e" BorderThickness="0" Click="OnTestVision"/>
+                <TextBlock x:Name="VisionTestResult" Text="" Foreground="#40e0d0" FontSize="11" Margin="0,6,0,0"/>
             </StackPanel>
 
             <!-- Step 3: ASR -->
@@ -81,16 +109,27 @@
             <StackPanel x:Name="TTSPanel" Visibility="Collapsed" Margin="0,8">
                 <TextBlock Text="TTS 语音合成" Foreground="#aaa" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,8"/>
                 <TextBlock Text="选择提供商:" Foreground="#777" FontSize="11" Margin="0,0,0,4"/>
-                <ComboBox x:Name="TTSProviderCombo" Width="200" Margin="0,0,0,12" Background="#2a2a3e" Foreground="#ddd">
+                <ComboBox x:Name="TTSProviderCombo" Width="220" Margin="0,0,0,8" Background="#2a2a3e" Foreground="#ddd">
                     <ComboBoxItem Content="MiMo-V2.5-TTS" IsSelected="True"/>
+                    <ComboBoxItem Content="MiMo TokenPlan (小米)"/>
                     <ComboBoxItem Content="OpenAI TTS"/>
                     <ComboBoxItem Content="Microsoft Azure TTS"/>
                     <ComboBoxItem Content="Google TTS"/>
+                    <ComboBoxItem Content="GPT-SoVITS (语音克隆)"/>
+                    <ComboBoxItem Content="OpenRouter"/>
                     <ComboBoxItem Content="系统语音 (免费)"/>
+                </ComboBox>
+                <TextBlock Text="API 端点 (选择，无需手填):" Foreground="#777" FontSize="11" Margin="0,4,0,4"/>
+                <ComboBox x:Name="TTSEndpointCombo" Width="380" Margin="0,0,0,8" Background="#2a2a3e" Foreground="#ddd">
+                    <ComboBoxItem Content="https://api.xiaomimimo.com/v1/audio/speech" IsSelected="True"/>
                 </ComboBox>
                 <TextBlock Text="API Key:" Foreground="#777" FontSize="11" Margin="0,0,0,4"/>
                 <TextBox x:Name="TTSApiKeyBox" Width="380" Height="30" Background="#2a2a3e" Foreground="#ddd"
                          BorderBrush="#444" Padding="8,4" FontSize="12"/>
+                <TextBlock Text="★ 模型名称 (必填):" Foreground="#ff6b6b" FontSize="12" FontWeight="Bold" Margin="0,10,0,4"/>
+                <TextBox x:Name="TTSModelNameBox" Width="380" Height="30" Background="#2a2a3e" Foreground="#ddd"
+                         BorderBrush="#ff6b6b" Padding="8,4" FontSize="12"/>
+                <TextBlock Text="必须填写完整模型名，如: mi-tts-v2.5 / tts-1 (系统语音可留空)" Foreground="#555" FontSize="10" Margin="0,4,0,0"/>
                 <TextBlock Text="音色:" Foreground="#777" FontSize="11" Margin="0,8,0,4"/>
                 <ComboBox x:Name="TTSVoiceCombo" Width="200" Background="#2a2a3e" Foreground="#ddd">
                     <ComboBoxItem Content="茉莉 (温柔)" IsSelected="True"/>
@@ -99,6 +138,29 @@
                     <ComboBoxItem Content="白桦 (自然)"/>
                     <ComboBoxItem Content="Mia"/>
                     <ComboBoxItem Content="Chloe"/>
+                </ComboBox>
+                <!-- GPT-SoVITS voice clone settings -->
+                <TextBlock x:Name="VoiceCloneHint" Text="GPT-SoVITS 语音克隆设置" Foreground="#7b68ee" FontSize="12" FontWeight="SemiBold" Margin="0,12,0,8" Visibility="Collapsed"/>
+                <TextBlock x:Name="VoiceCloneFileHint" Text="参考音频文件 (用于克隆声音，支持 WAV/MP3):" Foreground="#777" FontSize="11" Margin="0,0,0,4" Visibility="Collapsed"/>
+                <Grid Visibility="Collapsed" x:Name="VoiceCloneFileGrid">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBox x:Name="VoiceCloneAudioPathBox" Grid.Column="0" Width="300" Height="30" Background="#2a2a3e" Foreground="#ddd"
+                             BorderBrush="#444" Padding="8,4" FontSize="12" IsReadOnly="True" Margin="0,0,8,0"/>
+                    <Button x:Name="VoiceCloneBrowseBtn" Grid.Column="1" Content="浏览..." Width="70" Height="30"
+                            Background="#7b68ee" Foreground="White" BorderBrush="#7b68ee" Click="OnBrowseVoiceClone"/>
+                </Grid>
+                <TextBlock x:Name="VoiceClonePromptHint" Text="参考音频描述 (可选，帮助模型更好理解声音):" Foreground="#777" FontSize="11" Margin="0,8,0,4" Visibility="Collapsed"/>
+                <TextBox x:Name="VoiceClonePromptTextBox" Width="380" Height="30" Background="#2a2a3e" Foreground="#ddd"
+                         BorderBrush="#444" Padding="8,4" FontSize="12" Visibility="Collapsed"
+                         Text="一段温柔的女性声音，语速适中"/>
+                <TextBlock x:Name="VoiceCloneLangHint" Text="参考音频语言:" Foreground="#777" FontSize="11" Margin="0,8,0,4" Visibility="Collapsed"/>
+                <ComboBox x:Name="VoiceCloneLangCombo" Width="120" Background="#2a2a3e" Foreground="#ddd" Visibility="Collapsed">
+                    <ComboBoxItem Content="zh" IsSelected="True"/>
+                    <ComboBoxItem Content="en"/>
+                    <ComboBoxItem Content="ja"/>
                 </ComboBox>
             </StackPanel>
 
@@ -152,6 +214,94 @@
                             Background="#444" Foreground="#aaa" BorderThickness="0" Click="OnBrowseLive2D"/>
                 </Grid>
                 <TextBlock Text="包含 model3.json 的文件夹，例如: D:\Live2D\haru" Foreground="#555" FontSize="10" Margin="0,2,0,0"/>
+                <TextBlock Text="MMD模型 (.pmx/.pmd) 也会被识别" Foreground="#555" FontSize="10" Margin="0,2,0,0"/>
+            </StackPanel>
+
+            <!-- Step 8: Personality -->
+            <StackPanel x:Name="PersonalityPanel" Visibility="Collapsed" Margin="0,8">
+                <TextBlock Text="AI 人格设定" Foreground="#aaa" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                <TextBlock Text="定义AI助手的性格和说话风格" Foreground="#555" FontSize="11" Margin="0,0,0,8"/>
+                <TextBlock Text="人格描述:" Foreground="#777" FontSize="11" Margin="0,0,0,4"/>
+                <TextBox x:Name="PersonalityPromptBox" Width="380" Height="80" Background="#2a2a3e" Foreground="#ddd"
+                         BorderBrush="#444" Padding="8,4" FontSize="12" TextWrapping="Wrap" AcceptsReturn="True"
+                         Text="你是 Fairy，一个温柔、友善的AI助手。你说话亲切自然，像朋友一样和用户交流。"/>
+                <TextBlock Text="示例: 像原神中的派蒙一样活泼可爱 / 像温柔的大姐姐" Foreground="#555" FontSize="10" Margin="0,4,0,8"/>
+                <CheckBox x:Name="IsGameCharacterCheckBox" Content="人格基于游戏角色（将自动搜索原作待机音效）" Foreground="#aaa" FontSize="11" Margin="0,0,0,4"/>
+                <TextBlock Text="角色名 (如: 派蒙、雷电将军):" Foreground="#777" FontSize="11" Margin="0,4,0,4"/>
+                <TextBox x:Name="GameCharacterNameBox" Width="200" Height="28" Background="#2a2a3e" Foreground="#ddd"
+                         BorderBrush="#444" Padding="8,4" FontSize="12"/>
+            </StackPanel>
+
+            <!-- Step 9: Wake Word & UI -->
+            <StackPanel x:Name="WakeWordPanel" Visibility="Collapsed" Margin="0,8">
+                <TextBlock Text="唤醒词与界面" Foreground="#aaa" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                <TextBlock Text="自定义唤醒词:" Foreground="#777" FontSize="11" Margin="0,0,0,4"/>
+                <TextBox x:Name="WakeWordBox" Width="200" Height="28" Background="#2a2a3e" Foreground="#ddd"
+                         BorderBrush="#444" Padding="8,4" FontSize="12" Text="Fairy"/>
+                <TextBlock Text="输入框显示:" Foreground="#777" FontSize="11" Margin="0,12,0,4"/>
+                <CheckBox x:Name="ShowInputBoxCheckBox" Content="在灵动岛显示输入框" Foreground="#aaa" FontSize="11" Margin="0,0,0,8" IsChecked="True"/>
+                <TextBlock Text="输入框位置:" Foreground="#777" FontSize="11" Margin="0,0,0,4"/>
+                <ComboBox x:Name="InputBoxPositionCombo" Width="150" Background="#2a2a3e" Foreground="#ddd">
+                    <ComboBoxItem Content="左下" />
+                    <ComboBoxItem Content="右下" IsSelected="True"/>
+                    <ComboBoxItem Content="中下" />
+                </ComboBox>
+                <TextBlock Text="上下文压缩:" Foreground="#777" FontSize="11" Margin="0,12,0,4"/>
+                <CheckBox x:Name="EnableContextCompressionCheckBox" Content="启用上下文自动压缩 (每256K token)" Foreground="#aaa" FontSize="11" Margin="0,0,0,4" IsChecked="True"/>
+                <TextBlock Text="性能模式:" Foreground="#777" FontSize="11" Margin="0,8,0,4"/>
+                <ComboBox x:Name="PerformanceModeCombo" Width="150" Background="#2a2a3e" Foreground="#ddd">
+                    <ComboBoxItem Content="高性能"/>
+                    <ComboBoxItem Content="均衡" IsSelected="True"/>
+                    <ComboBoxItem Content="低占用"/>
+                </ComboBox>
+            </StackPanel>
+
+            <!-- Step 10: Custom Platform & Intro -->
+            <StackPanel x:Name="CustomPlatformPanel" Visibility="Collapsed" Margin="0,8">
+                <TextBlock Text="自定义平台与说明" Foreground="#aaa" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                <TextBlock Text="FairyAI 是您的个人AI助手，支持语音对话、屏幕识别、" Foreground="#888" FontSize="11" Margin="0,0,0,4"/>
+                <TextBlock Text="Live2D虚拟形象、文件分析、智能知识库等功能。" Foreground="#888" FontSize="11" Margin="0,0,0,12"/>
+                <CheckBox x:Name="EnableCustomPlatformCheckBox" Content="使用自定义API平台 (自行填写Base URL)" Foreground="#aaa" FontSize="11" Margin="0,0,0,8"/>
+                <TextBlock Text="文本模型 Base URL:" Foreground="#777" FontSize="11" Margin="0,0,0,4" Visibility="Collapsed" x:Name="CustomTextUrlHint"/>
+                <TextBox x:Name="CustomTextBaseUrlBox" Width="380" Height="28" Background="#2a2a3e" Foreground="#ddd"
+                         BorderBrush="#444" Padding="8,4" FontSize="12" Visibility="Collapsed"/>
+                <TextBlock Text="文本模型名称:" Foreground="#777" FontSize="11" Margin="0,4,0,4" Visibility="Collapsed" x:Name="CustomTextModelHint"/>
+                <TextBox x:Name="CustomTextModelBox" Width="200" Height="28" Background="#2a2a3e" Foreground="#ddd"
+                         BorderBrush="#444" Padding="8,4" FontSize="12" Visibility="Collapsed"/>
+                <TextBlock x:Name="CustomMultimodalHint" Text="多模态模型 (填入后无需填文本和图像模型):" Foreground="#7b68ee" FontSize="11" Margin="0,12,0,4" Visibility="Collapsed"/>
+                <TextBox x:Name="CustomMultimodalBaseUrlBox" Width="380" Height="28" Background="#2a2a3e" Foreground="#ddd"
+                         BorderBrush="#444" Padding="8,4" FontSize="12" Visibility="Collapsed"/>
+                <TextBox x:Name="CustomMultimodalModelBox" Width="200" Height="28" Background="#2a2a3e" Foreground="#ddd"
+                         BorderBrush="#444" Padding="8,4" FontSize="12" Visibility="Collapsed" Margin="0,4,0,0"/>
+            </StackPanel>
+
+            <!-- Step 11: Skills Selection -->
+            <StackPanel x:Name="SkillsPanel" Visibility="Collapsed" Margin="0,8">
+                <TextBlock Text="选择AI技能" Foreground="#aaa" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                <TextBlock Text="选择要启用的AI技能 (使用前AI会阅读对应README):" Foreground="#555" FontSize="11" Margin="0,0,0,8"/>
+                <CheckBox x:Name="SkillSummarize" Content="总结 (summarize) — 总结对话/文档" Foreground="#aaa" FontSize="11" Margin="0,0,0,4" IsChecked="True"/>
+                <CheckBox x:Name="SkillTranslate" Content="翻译 (translate) — 多语言翻译" Foreground="#aaa" FontSize="11" Margin="0,0,0,4" IsChecked="True"/>
+                <CheckBox x:Name="SkillCode" Content="代码 (code) — 代码编写/解释" Foreground="#aaa" FontSize="11" Margin="0,0,0,4" IsChecked="True"/>
+                <CheckBox x:Name="SkillEmail" Content="邮件 (email) — 邮件撰写" Foreground="#aaa" FontSize="11" Margin="0,0,0,4" IsChecked="True"/>
+                <CheckBox x:Name="SkillBrainstorm" Content="头脑风暴 (brainstorm) — 创意思考" Foreground="#aaa" FontSize="11" Margin="0,0,0,4" IsChecked="True"/>
+                <CheckBox x:Name="SkillAnalyze" Content="分析 (analyze) — 数据分析洞察" Foreground="#aaa" FontSize="11" Margin="0,0,0,4" IsChecked="True"/>
+                <TextBlock Text="已选技能的README.md将被AI在使用前仔细阅读" Foreground="#555" FontSize="10" Margin="0,8,0,0"/>
+            </StackPanel>
+
+            <!-- Step 12: Bilibili Login -->
+            <StackPanel x:Name="BiliLoginPanel" Visibility="Collapsed" Margin="0,8">
+                <TextBlock Text="B站学习登录" Foreground="#aaa" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                <TextBlock Text="BiliLearn功能需要登录B站账号以获取学习内容。" Foreground="#555" FontSize="11" Margin="0,0,0,8"/>
+                <TextBlock Text="请在下方扫码登录B站:" Foreground="#777" FontSize="11" Margin="0,0,0,8"/>
+                <Border Width="200" Height="200" Background="#2a2a3e" BorderBrush="#444" BorderThickness="1" Margin="0,0,0,8" HorizontalAlignment="Center">
+                    <TextBlock x:Name="BiliQRCodePlaceholder" Text="点击下方按钮获取二维码" Foreground="#666" FontSize="12"
+                               HorizontalAlignment="Center" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                </Border>
+                <Button x:Name="BiliGetQRBtn" Content="获取登录二维码" Width="180" Height="32" HorizontalAlignment="Center"
+                        Background="#7b68ee" Foreground="White" BorderThickness="0" Click="OnBiliGetQR"/>
+                <TextBlock x:Name="BiliLoginStatus" Text="" Foreground="#40e0d0" FontSize="11" Margin="0,8,0,0"
+                           HorizontalAlignment="Center"/>
+                <TextBlock Text="每日学习上限: 20个视频 | 内容自动存入知识库" Foreground="#555" FontSize="10" Margin="0,8,0,0"/>
             </StackPanel>
         </Grid>
 

@@ -84,6 +84,8 @@ public partial class App : Application
             sc.AddSingleton<IIntentAnalyzer, IntentAnalyzer>();
             sc.AddSingleton<IVisionService, VisionService>();
             sc.AddSingleton<ILive2DService, Live2DService>();
+            sc.AddSingleton<IScreenControlService, ScreenControlService>();
+            sc.AddSingleton<IAudioConverter, FfmpegAudioConverter>();
             sc.AddSingleton<ConnectivityManager>();
             sc.AddSingleton<FairyViewModel>();
 
@@ -113,6 +115,17 @@ public partial class App : Application
             toolRegistry.Register(new SetTokenLimitTool(tokenUsageService));
             toolRegistry.Register(new ListSkillsTool(skillService));
             toolRegistry.Register(new RunSkillTool(skillService));
+            var screenControl = new ScreenControlService();
+            var visionService = new VisionService();
+            var blenderService = new BlenderService();
+            toolRegistry.Register(new TakeScreenshotTool(visionService));
+            toolRegistry.Register(new MouseClickTool(screenControl));
+            toolRegistry.Register(new MouseDoubleClickTool(screenControl));
+            toolRegistry.Register(new MouseRightClickTool(screenControl));
+            toolRegistry.Register(new TypeTextTool(screenControl));
+            toolRegistry.Register(new PressKeyTool(screenControl));
+            toolRegistry.Register(new ScrollTool(screenControl));
+            toolRegistry.Register(new ConvertImageTo3DTool(blenderService));
             sc.AddSingleton(toolRegistry);
             sc.AddSingleton(sp => new FunctionCallingService(
                 sp.GetRequiredService<ILlmService>(), toolRegistry));
@@ -124,6 +137,9 @@ public partial class App : Application
             sc.AddSingleton(translateService);
             _services = sc.BuildServiceProvider();
             Log("DI container built");
+
+            // Auto-deploy Blender addon
+            BlenderService.DeployAddon();
 
             // ViewModel
             _vm = _services.GetRequiredService<FairyViewModel>();

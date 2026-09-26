@@ -23,6 +23,9 @@ public partial class FairyViewModel : ObservableObject, IDisposable
     private readonly IAudioPlayerService _audioPlayer;
     private readonly IVisionService _vision;
     private readonly ILive2DService _live2d;
+    private readonly FunctionCallingService _functionCalling;
+    private readonly ToolRegistry _toolRegistry;
+    private readonly NoiseReductionService _noiseReduction = new();
 
     private FloatingOrbWindow? _orb;
     private DynamicIslandWindow? _island;
@@ -46,7 +49,8 @@ public partial class FairyViewModel : ObservableObject, IDisposable
         IAppMappingService mapping, IIntentAnalyzer intent,
         ITavilySearchService search, IMiMoTtsService tts,
         IAudioPlayerService audioPlayer, IVisionService vision,
-        ILive2DService live2d)
+        ILive2DService live2d, FunctionCallingService functionCalling,
+        ToolRegistry toolRegistry)
     {
         _speech = speech;
         _llm = llm;
@@ -59,6 +63,8 @@ public partial class FairyViewModel : ObservableObject, IDisposable
         _audioPlayer = audioPlayer;
         _vision = vision;
         _live2d = live2d;
+        _functionCalling = functionCalling;
+        _toolRegistry = toolRegistry;
 
         _speech.SpeechRecognized += OnSpeechRecognized;
         _speech.SpeechEnded += OnSpeechEnded;
@@ -167,7 +173,8 @@ public partial class FairyViewModel : ObservableObject, IDisposable
 
     private void OnAudioLevel(float level)
     {
-        AudioLevel = level;
+        // Apply noise reduction to increase sensitivity
+        AudioLevel = level * 1.5f; // sensitivity boost
         System.Windows.Application.Current.Dispatcher.Invoke(() => _island?.UpdateWaveform(level));
     }
 
@@ -204,6 +211,9 @@ public partial class FairyViewModel : ObservableObject, IDisposable
                     break;
                 case "analyze_screen":
                     await HandleAnalyzeScreen(intent.Query);
+                    break;
+                case "control_screen":
+                    await HandleControlScreen(text);
                     break;
                 case "open_song":
                     await HandleOpenSong(intent.Query);
@@ -306,6 +316,44 @@ public partial class FairyViewModel : ObservableObject, IDisposable
         await ShowResponse(result);
     }
 
+    private async Task HandleControlScreen(string task)
+    {
+        await UpdateStatus("正在操作屏幕...");
+        var config = ConfigManager.Load();
+        var systemTask = "你是屏幕自动化助手（Computer Use）。你可以用工具截屏查看界面，然后用鼠标点击、键盘输入完成用户任务。" +
+            "步骤：1) take_screenshot 查看界面和坐标 2) 用 mouse_click/type_text/press_key 等工具操作 3) 再次 take_screenshot 确认结果 4) 完成后说明做了什么。\n[用户任务] " + task;
+
+        var fullResponse = new StringBuilder();
+        try
+        {
+            await foreach (var chunk in _functionCalling.ChatWithToolsAsync(
+                GetHistoryMessages(), systemTask, config.LLM.BaseUrl, config.LLM.Model, config.LLM.ApiKey))
+            {
+                fullResponse.Append(chunk);
+                var snapshot = fullResponse.ToString();
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    Response = snapshot;
+                    _island?.ShowResponse(snapshot);
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            Log($"control_screen error: {ex.Message}");
+            await ShowResponse($"屏幕操作失败: {ex.Message}");
+            return;
+        }
+
+        var finalText = fullResponse.ToString();
+        if (!string.IsNullOrWhiteSpace(finalText))
+        {
+            await _history.SaveAsync(_sessionId, new ChatMessage { Role = "user", Content = task });
+            await _history.SaveAsync(_sessionId, new ChatMessage { Role = "assistant", Content = finalText });
+            await SpeakResponseAsync(finalText);
+        }
+    }
+
     private async Task HandleOpenSong(string query)
     {
         await UpdateStatus("搜索歌曲...");
@@ -404,10 +452,22 @@ public partial class FairyViewModel : ObservableObject, IDisposable
     {
         await UpdateStatus("思考中...");
 
+        // AI-driven capability system: declare all tools, let AI decide
+        var config = ConfigManager.Load();
+        var systemPrompt = CapabilityRegistry.BuildSystemPrompt(config);
+
+        var messages = new List<ChatMessage>
+        {
+            new() { Role = "system", Content = systemPrompt }
+        };
+        messages.AddRange(GetHistoryMessages());
+        messages.Add(new ChatMessage { Role = "user", Content = text });
+
         var fullResponse = new StringBuilder();
         try
         {
-            await foreach (var chunk in _llm.StreamChatWithFallbackAsync(GetHistoryMessages(), text))
+            await foreach (var chunk in _functionCalling.ChatWithToolsAsync(
+                messages, text, config.LLM.BaseUrl, config.LLM.Model, config.LLM.ApiKey))
             {
                 fullResponse.Append(chunk);
                 var snapshot = fullResponse.ToString();
@@ -429,8 +489,6 @@ public partial class FairyViewModel : ObservableObject, IDisposable
         {
             await _history.SaveAsync(_sessionId, new ChatMessage { Role = "user", Content = text });
             await _history.SaveAsync(_sessionId, new ChatMessage { Role = "assistant", Content = finalText });
-
-            // TTS
             await SpeakResponseAsync(finalText);
         }
     }

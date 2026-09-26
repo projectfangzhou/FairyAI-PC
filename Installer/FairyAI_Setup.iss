@@ -1,7 +1,7 @@
 ; Fairy AI Installer Script for Inno Setup
 
 #define MyAppName "Fairy AI"
-#define MyAppVersion "1.3.2"
+#define MyAppVersion "2.0.0"
 #define MyAppPublisher "Fairy AI"
 #define MyAppExeName "MyAiAssistant.exe"
 
@@ -27,6 +27,11 @@ UninstallDisplayIcon={app}\{#MyAppExeName}
 [Files]
 Source: "..\bin\Release\net8.0-windows\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "..\Dependencies\Everything\*"; DestDir: "{app}\Everything"; Flags: ignoreversion recursesubdirs createallsubdirs skipifsourcedoesntexist
+Source: "cloudflare-worker.js"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
+Source: "..\BlenderAddon\fairyai_image_to_3d.py"; DestDir: "{app}\BlenderAddon"; Flags: ignoreversion
+Source: "deploy_blender_addon.bat"; DestDir: "{app}\BlenderAddon"; Flags: ignoreversion
+Source: "skills\*.md"; DestDir: "{app}\skills"; Flags: ignoreversion
+Source: "deploy_skills.bat"; DestDir: "{app}"; Flags: ignoreversion
 
 [Run]
 ; Auto-download and install .NET 8 Runtime if not present
@@ -38,6 +43,14 @@ Filename: "powershell.exe"; Parameters: "-ExecutionPolicy Bypass -Command ""irm 
 Filename: "powershell.exe"; Parameters: "-ExecutionPolicy Bypass -Command ""irm https://go.microsoft.com/fwlink/p/?LinkId=2124703 -OutFile $env:TEMP\MicrosoftEdgeWebview2Setup.exe; Start-Process $env:TEMP\MicrosoftEdgeWebview2Setup.exe -ArgumentList '/silent /install' -Wait"""; \
     StatusMsg: "正在安装 WebView2 运行库..."; Flags: runhidden waituntilterminated; \
     Check: not IsWebView2Installed
+
+; Deploy FairyAI Blender addon to Blender addon directories
+Filename: "{app}\BlenderAddon\deploy_blender_addon.bat"; \
+    StatusMsg: "正在安装 Blender 插件..."; Flags: runhidden waituntilterminated
+
+; Deploy skills
+Filename: "{app}\deploy_skills.bat"; \
+    StatusMsg: "正在部署 AI 技能..."; Flags: runhidden waituntilterminated
 
 ; Show setup complete page
 Filename: "{app}\{#MyAppExeName}"; Parameters: "--setup-complete"; \

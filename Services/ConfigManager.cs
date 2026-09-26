@@ -18,6 +18,11 @@ public class AppConfig
     public SyncConfig Sync { get; set; } = new();
     public NatTraversalConfig NatTraversal { get; set; } = new();
     public PersonalityConfig Personality { get; set; } = new();
+    public CustomPlatformConfig CustomPlatform { get; set; } = new();
+    public WakeWordConfig WakeWord { get; set; } = new();
+    public ContextConfig Context { get; set; } = new();
+    public PerformanceConfig Performance { get; set; } = new();
+    public IslandUIConfig IslandUI { get; set; } = new();
 }
 
 /// <summary>
@@ -30,6 +35,9 @@ public class PersonalityConfig
     public string AvatarUrl { get; set; } = "";
     public string Language { get; set; } = "zh-CN";
     public bool EnableEmotion { get; set; } = true;
+    public string IdleSoundStyle { get; set; } = "gentle";
+    public bool IsGameCharacter { get; set; } = false;
+    public string GameCharacterName { get; set; } = "";
 }
 
 public class LLMConfig
@@ -38,6 +46,37 @@ public class LLMConfig
     public string ApiKey { get; set; } = "";
     public string BaseUrl { get; set; } = "https://api.moonshot.cn/v1/chat/completions";
     public string Model { get; set; } = "kimi-k2.6";
+    public bool RequireModelName { get; set; } = true;
+}
+
+public class WakeWordConfig
+{
+    public string WakeWord { get; set; } = "Fairy";
+    public bool VoiceprintEnabled { get; set; } = false;
+    public string VoiceprintEmbeddingPath { get; set; } = "";
+    public float VoiceprintThreshold { get; set; } = 0.75f;
+}
+
+public class ContextConfig
+{
+    public bool Enabled { get; set; } = true;
+    public int MaxTokens { get; set; } = 256000;
+    public int AutoCompressTokens { get; set; } = 256000;
+    public string LastSyncDate { get; set; } = "";
+}
+
+public class PerformanceConfig
+{
+    /// <summary>high / balanced / low</summary>
+    public string Mode { get; set; } = "balanced";
+    public bool AutoDetectGames { get; set; } = true;
+}
+
+public class IslandUIConfig
+{
+    public bool ShowInputBox { get; set; } = true;
+    /// <summary>left-bottom / right-bottom / center-bottom</summary>
+    public string InputBoxPosition { get; set; } = "right-bottom";
 }
 
 public class ASRConfig
@@ -62,6 +101,14 @@ public class TTSConfig
     public string Voice { get; set; } = "茉莉";
     public string BaseUrl { get; set; } = "https://api.xiaomimimo.com/v1/audio/speech";
     public string Model { get; set; } = "mi-tts-v2.5";
+    /// <summary>GPT-SoVITS voice clone reference audio file path.</summary>
+    public string VoiceCloneAudioPath { get; set; } = "";
+    /// <summary>GPT-SoVITS prompt text (optional, description of the reference audio).</summary>
+    public string VoiceClonePromptText { get; set; } = "";
+    /// <summary>GPT-SoVITS text language for reference audio: zh / en / ja.</summary>
+    public string VoiceCloneLang { get; set; } = "zh";
+    /// <summary>Path to ffmpeg executable (for audio format conversion).</summary>
+    public string FfmpegPath { get; set; } = "";
     /// <summary>Additional TTS providers with their endpoints.</summary>
     public Dictionary<string, TtsPreset> Providers { get; set; } = new();
 }
@@ -160,6 +207,8 @@ public static class ConfigManager
         ["MiMo"] = ("https://api.xiaomimimo.com/v1/chat/completions", "mimo-v2.5"),
         ["OpenAI"] = ("https://api.openai.com/v1/chat/completions", "gpt-4o-mini"),
         ["Ollama"] = ("http://localhost:11434/v1/chat/completions", "llama3"),
+        ["OpenRouter"] = ("https://openrouter.ai/api/v1/chat/completions", "openai/gpt-4o-mini"),
+        ["自定义平台"] = ("", "custom"),
     };
 
     /// <summary>Visual model (screen understanding) provider presets.</summary>
@@ -170,6 +219,8 @@ public static class ConfigManager
         ["DeepSeek"] = ("https://api.deepseek.com/v1/chat/completions", "deepseek-chat"),
         ["MiMo"] = ("https://api.xiaomimimo.com/v1/chat/completions", "mimo-v2.5"),
         ["Azure OpenAI"] = ("https://{resource}.openai.azure.com/openai/deployments/{deployment}/chat/completions", "gpt-4o-mini"),
+        ["OpenRouter"] = ("https://openrouter.ai/api/v1/chat/completions", "openai/gpt-4o-mini"),
+        ["自定义平台"] = ("", "custom"),
     };
 
     /// <summary>ASR provider presets.</summary>
@@ -188,6 +239,9 @@ public static class ConfigManager
         ["OpenAI"] = ("https://api.openai.com/v1/audio/speech", "tts-1"),
         ["Microsoft Azure"] = ("https://{region}.tts.speech.microsoft.com/cognitiveservice/v1", "zh-CN-XiaoxiaoNeural"),
         ["Google"] = ("https://texttospeech.googleapis.com/v1/text:synthesize", "google-tts"),
+        ["GPT-SoVITS"] = ("http://localhost:9880/tts", "gpt-sovits"),
+        ["OpenRouter"] = ("https://openrouter.ai/api/v1/audio/speech", "openai/tts-1"),
+        ["自定义平台"] = ("", "custom"),
     };
 
     /// <summary>Web search provider presets.</summary>
@@ -215,7 +269,18 @@ public static class ConfigManager
             try
             {
                 var json = File.ReadAllText(ConfigPath);
-                return JsonSerializer.Deserialize<AppConfig>(json) ?? new AppConfig();
+                var config = JsonSerializer.Deserialize<AppConfig>(json) ?? new AppConfig();
+                config.LLM.ApiKey = ApiKeyProtector.Unprotect(config.LLM.ApiKey);
+                config.FallbackLLM.ApiKey = ApiKeyProtector.Unprotect(config.FallbackLLM.ApiKey);
+                config.ASR.ApiKey = ApiKeyProtector.Unprotect(config.ASR.ApiKey);
+                config.TTS.ApiKey = ApiKeyProtector.Unprotect(config.TTS.ApiKey);
+                config.Vision.ApiKey = ApiKeyProtector.Unprotect(config.Vision.ApiKey);
+                config.Tavily.ApiKey = ApiKeyProtector.Unprotect(config.Tavily.ApiKey);
+                config.CustomPlatform.TextApiKey = ApiKeyProtector.Unprotect(config.CustomPlatform.TextApiKey);
+                config.CustomPlatform.SpeechApiKey = ApiKeyProtector.Unprotect(config.CustomPlatform.SpeechApiKey);
+                config.CustomPlatform.VisionApiKey = ApiKeyProtector.Unprotect(config.CustomPlatform.VisionApiKey);
+                config.CustomPlatform.MultimodalApiKey = ApiKeyProtector.Unprotect(config.CustomPlatform.MultimodalApiKey);
+                return config;
             }
             catch { }
         }
@@ -224,9 +289,23 @@ public static class ConfigManager
 
     public static void Save(AppConfig config)
     {
+        // Encrypt API keys before storing
+        config.LLM.ApiKey = ApiKeyProtector.Protect(config.LLM.ApiKey);
+        config.FallbackLLM.ApiKey = ApiKeyProtector.Protect(config.FallbackLLM.ApiKey);
+        config.ASR.ApiKey = ApiKeyProtector.Protect(config.ASR.ApiKey);
+        config.TTS.ApiKey = ApiKeyProtector.Protect(config.TTS.ApiKey);
+        config.Vision.ApiKey = ApiKeyProtector.Protect(config.Vision.ApiKey);
+        config.Tavily.ApiKey = ApiKeyProtector.Protect(config.Tavily.ApiKey);
+        config.CustomPlatform.TextApiKey = ApiKeyProtector.Protect(config.CustomPlatform.TextApiKey);
+        config.CustomPlatform.SpeechApiKey = ApiKeyProtector.Protect(config.CustomPlatform.SpeechApiKey);
+        config.CustomPlatform.VisionApiKey = ApiKeyProtector.Protect(config.CustomPlatform.VisionApiKey);
+        config.CustomPlatform.MultimodalApiKey = ApiKeyProtector.Protect(config.CustomPlatform.MultimodalApiKey);
+
         var json = JsonSerializer.Serialize(config, new JsonSerializerOptions { WriteIndented = true });
         File.WriteAllText(ConfigPath, json);
     }
+
+
 
     public static bool NeedsSetup()
     {
