@@ -52,7 +52,7 @@ public class VoiceprintService
         }
     }
 
-    /// <summary>Verify voiceprint. Returns (isMatch, confidence).</summary>
+    /// <summary>Verify voiceprint using combined distance metrics.</summary>
     public (bool IsMatch, float Confidence) Verify(byte[] audioData)
     {
         if (!IsEnrolled) return (true, 1f);
@@ -65,15 +65,29 @@ public class VoiceprintService
             if (stored == null || stored.Length == 0 || current.Length == 0)
                 return (true, 1f);
 
-            // Use only min length
             int len = Math.Min(stored.Length, current.Length);
-            float cosine = CosineSimilarity(stored[..len], current[..len]);
-            float euclidean = EuclideanSimilarity(stored[..len], current[..len]);
-            float confidence = cosine * 0.7f + euclidean * 0.3f;
-            bool isMatch = confidence >= _threshold;
 
-            Log($"Verify: cos={cosine:F3} euc={euclidean:F3} conf={confidence:F3} thr={_threshold} match={isMatch}");
-            return (isMatch, confidence);
+            // Use euclidean distance (more discriminative than cosine for raw features)
+            float dist = 0;
+            for (int i = 0; i < len; i++)
+            {
+                float d = stored[i] - current[i];
+                dist += d * d;
+            }
+            dist = (float)Math.Sqrt(dist);
+
+            // Convert distance to similarity (0-1, higher = more similar)
+            float confidence = 1f / (1f + dist);
+
+            // Also compute cosine for reference
+            float cosine = CosineSimilarity(stored[..len], current[..len]);
+
+            // Combined score: emphasize euclidean
+            float combined = confidence * 0.6f + cosine * 0.4f;
+            bool isMatch = combined >= _threshold;
+
+            Log($"Verify: dist={dist:F4} conf={confidence:F3} cos={cosine:F3} combined={combined:F3} thr={_threshold} match={isMatch}");
+            return (isMatch, combined);
         }
         catch (Exception ex)
         {
@@ -82,81 +96,58 @@ public class VoiceprintService
         }
     }
 
-    /// <summary>Extract simple but reliable features: energy stats + spectral features.</summary>
+    /// <summary>Extract discriminative features: raw spectral shape + energy distribution.</summary>
     private static float[] ExtractFeatures(byte[] audioData)
     {
-        // Parse 16-bit PCM WAV (skip header)
         int headerSize = 44;
-        if (audioData.Length < headerSize + 200) return Array.Empty<float>();
+        if (audioData.Length < headerSize + 400) return Array.Empty<float>();
 
         int sampleCount = (audioData.Length - headerSize) / 2;
         var samples = new float[sampleCount];
         for (int i = 0; i < sampleCount; i++)
             samples[i] = BitConverter.ToInt16(audioData, headerSize + i * 2) / 32768f;
 
-        // 1. Overall energy
-        float energy = samples.Sum(s => s * s) / sampleCount;
+        var features = new float[12];
 
-        // 2. RMS
-        float rms = (float)Math.Sqrt(energy);
+        // 1. RMS energy (scalar - important for discrimination)
+        float rms = (float)Math.Sqrt(samples.Sum(s => s * s) / sampleCount);
+        features[0] = rms;
+
+        // 2. Peak amplitude
+        features[1] = samples.Max(Math.Abs);
 
         // 3. Zero-crossing rate
         int zcr = 0;
         for (int i = 1; i < sampleCount; i++)
             if ((samples[i] >= 0) != (samples[i - 1] >= 0)) zcr++;
-        float zcrRate = (float)zcr / sampleCount;
+        features[2] = (float)zcr / sampleCount;
 
-        // 4. Spectral centroid (via simple DFT on subsample)
-        float spectralCentroid = 0;
-        int fftSize = 256;
-        int frames = sampleCount / fftSize;
-        if (frames > 0)
+        // 4-11. Spectral band energies (8 bands) - RAW values, no normalization
+        int fftSize = 128;
+        int frames = Math.Min(sampleCount / fftSize, 6);
+        for (int b = 0; b < 8; b++)
         {
-            float weightedFreq = 0, totalMag = 0;
-            for (int f = 0; f < Math.Min(frames, 10); f++)
+            float bandSum = 0;
+            int bandStart = b * 8; // each band = 8 frequency bins
+            int bandEnd = bandStart + 8;
+            for (int f = 0; f < frames; f++)
             {
                 int start = f * fftSize;
-                for (int k = 1; k < fftSize / 2; k++)
+                for (int k = bandStart; k < bandEnd && k < fftSize / 2; k++)
                 {
                     float re = 0, im = 0;
                     float freq = (float)k / fftSize;
-                    for (int n = 0; n < fftSize; n += 4) // subsample for speed
+                    for (int n = 0; n < fftSize; n += 4)
                     {
                         float angle = 2f * MathF.PI * freq * n;
                         re += samples[start + n] * MathF.Cos(angle);
                         im -= samples[start + n] * MathF.Sin(angle);
                     }
-                    float mag = (float)Math.Sqrt(re * re + im * im);
-                    weightedFreq += mag * k;
-                    totalMag += mag;
+                    bandSum += re * re + im * im;
                 }
             }
-            spectralCentroid = totalMag > 0 ? weightedFreq / totalMag : 0;
+            features[3 + b] = bandSum / (frames + 1);
         }
-
-        // 5. Peak amplitude
-        float peak = samples.Max(Math.Abs);
-
-        // 6. Band energies (4 bands)
-        var bandEnergies = new float[4];
-        int bandSize = sampleCount / 4;
-        for (int b = 0; b < 4; b++)
-        {
-            float sum = 0;
-            for (int i = b * bandSize; i < (b + 1) * bandSize && i < sampleCount; i++)
-                sum += samples[i] * samples[i];
-            bandEnergies[b] = sum / bandSize;
-        }
-
-        // Combine features
-        var features = new float[] { energy, rms, zcrRate, spectralCentroid, peak,
-            bandEnergies[0], bandEnergies[1], bandEnergies[2], bandEnergies[3] };
-
-        // Normalize
-        float max = features.Max(Math.Abs);
-        if (max > 0)
-            for (int i = 0; i < features.Length; i++)
-                features[i] /= max;
 
         return features;
     }
