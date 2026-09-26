@@ -148,6 +148,10 @@ public class PlatformLoginService
             return (false, $"安装失败: {ex.Message}");
         }
     }
+    private static void Log(string msg)
+    {
+        try { File.AppendAllText(LogPath, $"[{DateTime.Now:HH:mm:ss}] [LOGIN] {msg}\n"); } catch { }
+    }
 }
 
 /// <summary>Proper ISO/IEC 18004 QR code generator.</summary>
