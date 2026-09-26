@@ -12,36 +12,32 @@ public partial class SetupWizardWindow : Window
     public SetupWizardWindow()
     {
         InitializeComponent();
-        TTSProviderCombo.SelectionChanged += OnTTSProviderChanged;
-        LLMProviderCombo.SelectionChanged += OnLLMProviderChanged;
-        VisionProviderCombo.SelectionChanged += OnVisionProviderChanged;
+        // Events already connected in XAML — no double hookup needed
         EnableCustomPlatformCheckBox.Checked += (_, _) => UpdateCustomPlatformVisibility(true);
         EnableCustomPlatformCheckBox.Unchecked += (_, _) => UpdateCustomPlatformVisibility(false);
     }
 
     private void OnBiliGetQR(object sender, RoutedEventArgs e)
     {
-        BiliQRCodePlaceholder.Text = "二维码\n生成中";
-        BiliLoginStatus.Text = "请使用B站APP扫码";
-        BiliLoginStatus.Foreground = System.Windows.Media.Brushes.Yellow;
+        if (BiliQRCodePlaceholder != null) BiliQRCodePlaceholder.Text = "二维码\n生成中";
+        if (BiliLoginStatus != null) { BiliLoginStatus.Text = "请使用B站APP扫码"; BiliLoginStatus.Foreground = System.Windows.Media.Brushes.Yellow; }
     }
 
     private void OnQQGetQR(object sender, RoutedEventArgs e)
     {
-        QQQRCodePlaceholder.Text = "二维码\n生成中";
-        QQLoginStatus.Text = "请使用QQ扫码授权";
-        QQLoginStatus.Foreground = System.Windows.Media.Brushes.Yellow;
+        if (QQQRCodePlaceholder != null) QQQRCodePlaceholder.Text = "二维码\n生成中";
+        if (QQLoginStatus != null) { QQLoginStatus.Text = "请使用QQ扫码授权"; QQLoginStatus.Foreground = System.Windows.Media.Brushes.Yellow; }
     }
 
     private void OnWeChatGetQR(object sender, RoutedEventArgs e)
     {
-        WeChatQRCodePlaceholder.Text = "二维码\n生成中";
-        WeChatLoginStatus.Text = "请使用微信扫码授权";
-        WeChatLoginStatus.Foreground = System.Windows.Media.Brushes.Yellow;
+        if (WeChatQRCodePlaceholder != null) WeChatQRCodePlaceholder.Text = "二维码\n生成中";
+        if (WeChatLoginStatus != null) { WeChatLoginStatus.Text = "请使用微信扫码授权"; WeChatLoginStatus.Foreground = System.Windows.Media.Brushes.Yellow; }
     }
 
     private void OnLLMProviderChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
     {
+        if (LLMProviderCombo == null || LLMEndpointCombo == null) return;
         var provider = (LLMProviderCombo.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Content?.ToString() ?? "";
         LLMEndpointCombo.Items.Clear();
         var endpoints = provider switch
@@ -72,6 +68,7 @@ public partial class SetupWizardWindow : Window
 
     private void OnVisionProviderChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
     {
+        if (VisionProviderCombo == null || VisionEndpointCombo == null) return;
         var provider = (VisionProviderCombo.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Content?.ToString() ?? "";
         VisionEndpointCombo.Items.Clear();
         var endpoints = provider switch
@@ -101,6 +98,7 @@ public partial class SetupWizardWindow : Window
 
     private void OnTTSProviderChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
     {
+        if (TTSProviderCombo == null || TTSEndpointCombo == null) return;
         var selected = (TTSProviderCombo.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Content?.ToString() ?? "";
 
         TTSEndpointCombo.Items.Clear();
@@ -258,18 +256,14 @@ public partial class SetupWizardWindow : Window
         // Validate model names on step 2 (dedicated model name step)
         if (_currentStep == 2)
         {
-            if (string.IsNullOrWhiteSpace(LLMModelNameBox.Text))
+            if (LLMModelNameBox == null || string.IsNullOrWhiteSpace(LLMModelNameBox.Text))
             {
-                MessageBox.Show("请填写文本模型名称！\n\n例如: kimi-k2.6 / gpt-4o-mini / deepseek-chat",
-                    "模型名称必填", MessageBoxButton.OK, MessageBoxImage.Warning);
-                LLMModelNameBox.Focus();
+                MessageBox.Show("请填写文本模型名称！", "模型名称必填", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
-            if (string.IsNullOrWhiteSpace(VisionModelNameBox.Text))
+            if (VisionModelNameBox == null || string.IsNullOrWhiteSpace(VisionModelNameBox.Text))
             {
-                MessageBox.Show("请填写视觉模型名称！\n\n例如: gpt-4o-mini / gemini-2.0-flash",
-                    "模型名称必填", MessageBoxButton.OK, MessageBoxImage.Warning);
-                VisionModelNameBox.Focus();
+                MessageBox.Show("请填写视觉模型名称！", "模型名称必填", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
         }
@@ -303,26 +297,27 @@ public partial class SetupWizardWindow : Window
 
     private void UpdateUI()
     {
-        StepIndicator.Text = $"步骤 {_currentStep}/{TotalSteps}: {GetStepName(_currentStep)}";
+        if (StepIndicator != null)
+            StepIndicator.Text = $"步骤 {_currentStep}/{TotalSteps}: {GetStepName(_currentStep)}";
 
-        LLMPanel.Visibility = _currentStep == 1 ? Visibility.Visible : Visibility.Collapsed;
-        ModelNamePanel.Visibility = _currentStep == 2 ? Visibility.Visible : Visibility.Collapsed;
-        VisionPanel.Visibility = _currentStep == 3 ? Visibility.Visible : Visibility.Collapsed;
-        ASRPanel.Visibility = _currentStep == 4 ? Visibility.Visible : Visibility.Collapsed;
-        TTSPanel.Visibility = _currentStep == 5 ? Visibility.Visible : Visibility.Collapsed;
-        FallbackLLMPanel.Visibility = _currentStep == 6 ? Visibility.Visible : Visibility.Collapsed;
-        LocalVisionPanel.Visibility = _currentStep == 7 ? Visibility.Visible : Visibility.Collapsed;
-        Live2DPanel.Visibility = _currentStep == 8 ? Visibility.Visible : Visibility.Collapsed;
-        PersonalityPanel.Visibility = _currentStep == 9 ? Visibility.Visible : Visibility.Collapsed;
-        WakeWordPanel.Visibility = _currentStep == 10 ? Visibility.Visible : Visibility.Collapsed;
-        CustomPlatformPanel.Visibility = _currentStep == 11 ? Visibility.Visible : Visibility.Collapsed;
-        SkillsPanel.Visibility = _currentStep == 12 ? Visibility.Visible : Visibility.Collapsed;
-        BiliLoginPanel.Visibility = _currentStep == 13 ? Visibility.Visible : Visibility.Collapsed;
-        RelayPanel.Visibility = _currentStep == 14 ? Visibility.Visible : Visibility.Collapsed;
+        if (LLMPanel != null) LLMPanel.Visibility = _currentStep == 1 ? Visibility.Visible : Visibility.Collapsed;
+        if (ModelNamePanel != null) ModelNamePanel.Visibility = _currentStep == 2 ? Visibility.Visible : Visibility.Collapsed;
+        if (VisionPanel != null) VisionPanel.Visibility = _currentStep == 3 ? Visibility.Visible : Visibility.Collapsed;
+        if (ASRPanel != null) ASRPanel.Visibility = _currentStep == 4 ? Visibility.Visible : Visibility.Collapsed;
+        if (TTSPanel != null) TTSPanel.Visibility = _currentStep == 5 ? Visibility.Visible : Visibility.Collapsed;
+        if (FallbackLLMPanel != null) FallbackLLMPanel.Visibility = _currentStep == 6 ? Visibility.Visible : Visibility.Collapsed;
+        if (LocalVisionPanel != null) LocalVisionPanel.Visibility = _currentStep == 7 ? Visibility.Visible : Visibility.Collapsed;
+        if (Live2DPanel != null) Live2DPanel.Visibility = _currentStep == 8 ? Visibility.Visible : Visibility.Collapsed;
+        if (PersonalityPanel != null) PersonalityPanel.Visibility = _currentStep == 9 ? Visibility.Visible : Visibility.Collapsed;
+        if (WakeWordPanel != null) WakeWordPanel.Visibility = _currentStep == 10 ? Visibility.Visible : Visibility.Collapsed;
+        if (CustomPlatformPanel != null) CustomPlatformPanel.Visibility = _currentStep == 11 ? Visibility.Visible : Visibility.Collapsed;
+        if (SkillsPanel != null) SkillsPanel.Visibility = _currentStep == 12 ? Visibility.Visible : Visibility.Collapsed;
+        if (BiliLoginPanel != null) BiliLoginPanel.Visibility = _currentStep == 13 ? Visibility.Visible : Visibility.Collapsed;
+        if (RelayPanel != null) RelayPanel.Visibility = _currentStep == 14 ? Visibility.Visible : Visibility.Collapsed;
 
-        BackBtn.Visibility = _currentStep > 1 ? Visibility.Visible : Visibility.Collapsed;
-        NextBtn.Visibility = _currentStep < TotalSteps ? Visibility.Visible : Visibility.Collapsed;
-        FinishBtn.Visibility = _currentStep == TotalSteps ? Visibility.Visible : Visibility.Collapsed;
+        if (BackBtn != null) BackBtn.Visibility = _currentStep > 1 ? Visibility.Visible : Visibility.Collapsed;
+        if (NextBtn != null) NextBtn.Visibility = _currentStep < TotalSteps ? Visibility.Visible : Visibility.Collapsed;
+        if (FinishBtn != null) FinishBtn.Visibility = _currentStep == TotalSteps ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private string GetStepName(int step) => step switch
