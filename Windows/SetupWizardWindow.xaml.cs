@@ -17,22 +17,84 @@ public partial class SetupWizardWindow : Window
         EnableCustomPlatformCheckBox.Unchecked += (_, _) => UpdateCustomPlatformVisibility(false);
     }
 
-    private void OnBiliGetQR(object sender, RoutedEventArgs e)
+    private async void OnBiliGetQR(object sender, RoutedEventArgs e)
     {
-        if (BiliQRCodePlaceholder != null) BiliQRCodePlaceholder.Text = "二维码\n生成中";
-        if (BiliLoginStatus != null) { BiliLoginStatus.Text = "请使用B站APP扫码"; BiliLoginStatus.Foreground = System.Windows.Media.Brushes.Yellow; }
+        if (BiliQRCodePlaceholder != null) BiliQRCodePlaceholder.Text = "正在获取二维码...";
+        if (BiliLoginStatus != null) { BiliLoginStatus.Text = "网络请求中..."; BiliLoginStatus.Foreground = System.Windows.Media.Brushes.Yellow; }
+
+        try
+        {
+            var qrService = new Services.QRLoginService();
+            var (image, url, message) = await qrService.GetBiliQRAsync();
+            if (image != null && BiliQRCodePlaceholder != null)
+            {
+                // Replace text placeholder with QR image
+                BiliQRCodePlaceholder.Visibility = Visibility.Collapsed;
+                var img = new System.Windows.Controls.Image { Source = image, Width = 80, Height = 80, Stretch = System.Windows.Media.Stretch.Uniform };
+                // Find parent border and add image
+                if (BiliQRCodePlaceholder.Parent is System.Windows.Controls.Border border)
+                {
+                    border.Child = img;
+                }
+            }
+            if (BiliLoginStatus != null)
+            {
+                BiliLoginStatus.Text = message;
+                BiliLoginStatus.Foreground = message.Contains("错误") ? System.Windows.Media.Brushes.OrangeRed : System.Windows.Media.Brushes.LimeGreen;
+            }
+        }
+        catch (Exception ex)
+        {
+            if (BiliLoginStatus != null) { BiliLoginStatus.Text = $"错误: {ex.Message}"; BiliLoginStatus.Foreground = System.Windows.Media.Brushes.OrangeRed; }
+        }
     }
 
-    private void OnQQGetQR(object sender, RoutedEventArgs e)
+    private async void OnQQGetQR(object sender, RoutedEventArgs e)
     {
-        if (QQQRCodePlaceholder != null) QQQRCodePlaceholder.Text = "二维码\n生成中";
-        if (QQLoginStatus != null) { QQLoginStatus.Text = "请使用QQ扫码授权"; QQLoginStatus.Foreground = System.Windows.Media.Brushes.Yellow; }
+        if (QQQRCodePlaceholder != null) QQQRCodePlaceholder.Text = "正在获取二维码...";
+        if (QQLoginStatus != null) { QQLoginStatus.Text = "网络请求中..."; QQLoginStatus.Foreground = System.Windows.Media.Brushes.Yellow; }
+
+        try
+        {
+            var qrService = new Services.QRLoginService();
+            var (image, message) = await qrService.GetQQQRAsync();
+            if (image != null && QQQRCodePlaceholder != null)
+            {
+                QQQRCodePlaceholder.Visibility = Visibility.Collapsed;
+                var img = new System.Windows.Controls.Image { Source = image, Width = 80, Height = 80, Stretch = System.Windows.Media.Stretch.Uniform };
+                if (QQQRCodePlaceholder.Parent is System.Windows.Controls.Border border)
+                    border.Child = img;
+            }
+            if (QQLoginStatus != null) { QQLoginStatus.Text = message; QQLoginStatus.Foreground = System.Windows.Media.Brushes.LimeGreen; }
+        }
+        catch (Exception ex)
+        {
+            if (QQLoginStatus != null) { QQLoginStatus.Text = $"错误: {ex.Message}"; QQLoginStatus.Foreground = System.Windows.Media.Brushes.OrangeRed; }
+        }
     }
 
-    private void OnWeChatGetQR(object sender, RoutedEventArgs e)
+    private async void OnWeChatGetQR(object sender, RoutedEventArgs e)
     {
-        if (WeChatQRCodePlaceholder != null) WeChatQRCodePlaceholder.Text = "二维码\n生成中";
-        if (WeChatLoginStatus != null) { WeChatLoginStatus.Text = "请使用微信扫码授权"; WeChatLoginStatus.Foreground = System.Windows.Media.Brushes.Yellow; }
+        if (WeChatQRCodePlaceholder != null) WeChatQRCodePlaceholder.Text = "正在获取二维码...";
+        if (WeChatLoginStatus != null) { WeChatLoginStatus.Text = "网络请求中..."; WeChatLoginStatus.Foreground = System.Windows.Media.Brushes.Yellow; }
+
+        try
+        {
+            var qrService = new Services.QRLoginService();
+            var (image, message) = await qrService.GetWeChatQRAsync();
+            if (image != null && WeChatQRCodePlaceholder != null)
+            {
+                WeChatQRCodePlaceholder.Visibility = Visibility.Collapsed;
+                var img = new System.Windows.Controls.Image { Source = image, Width = 80, Height = 80, Stretch = System.Windows.Media.Stretch.Uniform };
+                if (WeChatQRCodePlaceholder.Parent is System.Windows.Controls.Border border)
+                    border.Child = img;
+            }
+            if (WeChatLoginStatus != null) { WeChatLoginStatus.Text = message; WeChatLoginStatus.Foreground = System.Windows.Media.Brushes.LimeGreen; }
+        }
+        catch (Exception ex)
+        {
+            if (WeChatLoginStatus != null) { WeChatLoginStatus.Text = $"错误: {ex.Message}"; WeChatLoginStatus.Foreground = System.Windows.Media.Brushes.OrangeRed; }
+        }
     }
 
     private void OnLLMProviderChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
