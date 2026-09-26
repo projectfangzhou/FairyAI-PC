@@ -19,29 +19,45 @@ public partial class SetupWizardWindow : Window
 
     private async void OnBiliGetQR(object sender, RoutedEventArgs e)
     {
-        if (BiliQRCodePlaceholder != null) BiliQRCodePlaceholder.Text = "正在获取二维码...";
+        if (BiliQRCodePlaceholder != null) BiliQRCodePlaceholder.Text = "正在连接B站...";
         if (BiliLoginStatus != null) { BiliLoginStatus.Text = "网络请求中..."; BiliLoginStatus.Foreground = System.Windows.Media.Brushes.Yellow; }
 
         try
         {
-            var qrService = new Services.QRLoginService();
-            var (image, url, message) = await qrService.GetBiliQRAsync();
+            var loginService = new Services.PlatformLoginService();
+            var (image, url, key, message) = await loginService.GetBiliQRAsync();
             if (image != null && BiliQRCodePlaceholder != null)
             {
-                // Replace text placeholder with QR image
                 BiliQRCodePlaceholder.Visibility = Visibility.Collapsed;
                 var img = new System.Windows.Controls.Image { Source = image, Width = 80, Height = 80, Stretch = System.Windows.Media.Stretch.Uniform };
-                // Find parent border and add image
                 if (BiliQRCodePlaceholder.Parent is System.Windows.Controls.Border border)
-                {
                     border.Child = img;
-                }
             }
             if (BiliLoginStatus != null)
             {
                 BiliLoginStatus.Text = message;
                 BiliLoginStatus.Foreground = message.Contains("错误") ? System.Windows.Media.Brushes.OrangeRed : System.Windows.Media.Brushes.LimeGreen;
             }
+
+            // Start polling for login status
+            if (!string.IsNullOrWhiteSpace(key))
+                _ = Task.Run(async () =>
+                {
+                    for (int i = 0; i < 30; i++) // 5 minutes
+                    {
+                        await Task.Delay(10000); // every 10s
+                        var (ok, msg) = await loginService.PollBiliQRAsync(key);
+                        await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                        {
+                            if (BiliLoginStatus != null)
+                            {
+                                BiliLoginStatus.Text = msg;
+                                BiliLoginStatus.Foreground = ok ? System.Windows.Media.Brushes.LimeGreen : System.Windows.Media.Brushes.Yellow;
+                            }
+                        });
+                        if (ok) break;
+                    }
+                });
         }
         catch (Exception ex)
         {
@@ -51,21 +67,18 @@ public partial class SetupWizardWindow : Window
 
     private async void OnQQGetQR(object sender, RoutedEventArgs e)
     {
-        if (QQQRCodePlaceholder != null) QQQRCodePlaceholder.Text = "正在获取二维码...";
-        if (QQLoginStatus != null) { QQLoginStatus.Text = "网络请求中..."; QQLoginStatus.Foreground = System.Windows.Media.Brushes.Yellow; }
+        if (QQQRCodePlaceholder != null) QQQRCodePlaceholder.Text = "正在安装QQ Bot...";
+        if (QQLoginStatus != null) { QQLoginStatus.Text = "配置中..."; QQLoginStatus.Foreground = System.Windows.Media.Brushes.Yellow; }
 
         try
         {
-            var qrService = new Services.QRLoginService();
-            var (image, message) = await qrService.GetQQQRAsync();
-            if (image != null && QQQRCodePlaceholder != null)
+            var loginService = new Services.PlatformLoginService();
+            var (ok, message) = await loginService.SetupQQBotAsync();
+            if (QQLoginStatus != null)
             {
-                QQQRCodePlaceholder.Visibility = Visibility.Collapsed;
-                var img = new System.Windows.Controls.Image { Source = image, Width = 80, Height = 80, Stretch = System.Windows.Media.Stretch.Uniform };
-                if (QQQRCodePlaceholder.Parent is System.Windows.Controls.Border border)
-                    border.Child = img;
+                QQLoginStatus.Text = message;
+                QQLoginStatus.Foreground = ok ? System.Windows.Media.Brushes.LimeGreen : System.Windows.Media.Brushes.OrangeRed;
             }
-            if (QQLoginStatus != null) { QQLoginStatus.Text = message; QQLoginStatus.Foreground = System.Windows.Media.Brushes.LimeGreen; }
         }
         catch (Exception ex)
         {
@@ -75,21 +88,18 @@ public partial class SetupWizardWindow : Window
 
     private async void OnWeChatGetQR(object sender, RoutedEventArgs e)
     {
-        if (WeChatQRCodePlaceholder != null) WeChatQRCodePlaceholder.Text = "正在获取二维码...";
-        if (WeChatLoginStatus != null) { WeChatLoginStatus.Text = "网络请求中..."; WeChatLoginStatus.Foreground = System.Windows.Media.Brushes.Yellow; }
+        if (WeChatQRCodePlaceholder != null) WeChatQRCodePlaceholder.Text = "正在安装微信...";
+        if (WeChatLoginStatus != null) { WeChatLoginStatus.Text = "配置中..."; WeChatLoginStatus.Foreground = System.Windows.Media.Brushes.Yellow; }
 
         try
         {
-            var qrService = new Services.QRLoginService();
-            var (image, message) = await qrService.GetWeChatQRAsync();
-            if (image != null && WeChatQRCodePlaceholder != null)
+            var loginService = new Services.PlatformLoginService();
+            var (ok, message) = await loginService.SetupWeChatAsync();
+            if (WeChatLoginStatus != null)
             {
-                WeChatQRCodePlaceholder.Visibility = Visibility.Collapsed;
-                var img = new System.Windows.Controls.Image { Source = image, Width = 80, Height = 80, Stretch = System.Windows.Media.Stretch.Uniform };
-                if (WeChatQRCodePlaceholder.Parent is System.Windows.Controls.Border border)
-                    border.Child = img;
+                WeChatLoginStatus.Text = message;
+                WeChatLoginStatus.Foreground = ok ? System.Windows.Media.Brushes.LimeGreen : System.Windows.Media.Brushes.OrangeRed;
             }
-            if (WeChatLoginStatus != null) { WeChatLoginStatus.Text = message; WeChatLoginStatus.Foreground = System.Windows.Media.Brushes.LimeGreen; }
         }
         catch (Exception ex)
         {
