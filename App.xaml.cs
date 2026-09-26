@@ -36,24 +36,13 @@ public partial class App : Application
 
         try
         {
-            // Check for setup-complete flag (from installer)
+            // Check for setup-complete flag (from installer) — show welcome but DON'T skip wizard
             if (e.Args.Contains("--setup-complete"))
             {
-                // Skip setup, just show usage
-                MessageBox.Show(
-                    "Fairy AI 安装完成！\n\n" +
-                    "使用方式：\n" +
-                    "1. 屏幕顶部中央有一个紫色圆球\n" +
-                    "2. 点击圆球 → 展开灵动岛，开始语音对话\n" +
-                    "3. 再次点击圆球 → 收回灵动岛\n" +
-                    "4. 灵动岛内支持文字输入和语音交互\n" +
-                    "5. AI 回复会自动语音播报",
-                    "Fairy AI", MessageBoxButton.OK, MessageBoxImage.Information);
-                Shutdown();
-                return;
+                Log("Installer finished — will show setup wizard if needed");
             }
 
-            // Check if first-run setup is needed
+            // Always show setup wizard on first run (or when API key is missing)
             if (ConfigManager.NeedsSetup())
             {
                 Log("First run detected — showing setup wizard");
