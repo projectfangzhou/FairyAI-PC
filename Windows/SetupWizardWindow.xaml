@@ -288,20 +288,97 @@
                 <TextBlock Text="已选技能的README.md将被AI在使用前仔细阅读" Foreground="#555" FontSize="10" Margin="0,8,0,0"/>
             </StackPanel>
 
-            <!-- Step 12: Bilibili Login -->
+            <!-- Step 12: Bot Logins (Bilibili + QQ + WeChat) -->
             <StackPanel x:Name="BiliLoginPanel" Visibility="Collapsed" Margin="0,8">
-                <TextBlock Text="B站学习登录" Foreground="#aaa" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,8"/>
-                <TextBlock Text="BiliLearn功能需要登录B站账号以获取学习内容。" Foreground="#555" FontSize="11" Margin="0,0,0,8"/>
-                <TextBlock Text="请在下方扫码登录B站:" Foreground="#777" FontSize="11" Margin="0,0,0,8"/>
-                <Border Width="200" Height="200" Background="#2a2a3e" BorderBrush="#444" BorderThickness="1" Margin="0,0,0,8" HorizontalAlignment="Center">
-                    <TextBlock x:Name="BiliQRCodePlaceholder" Text="点击下方按钮获取二维码" Foreground="#666" FontSize="12"
-                               HorizontalAlignment="Center" VerticalAlignment="Center" TextWrapping="Wrap"/>
-                </Border>
-                <Button x:Name="BiliGetQRBtn" Content="获取登录二维码" Width="180" Height="32" HorizontalAlignment="Center"
-                        Background="#7b68ee" Foreground="White" BorderThickness="0" Click="OnBiliGetQR"/>
-                <TextBlock x:Name="BiliLoginStatus" Text="" Foreground="#40e0d0" FontSize="11" Margin="0,8,0,0"
-                           HorizontalAlignment="Center"/>
-                <TextBlock Text="每日学习上限: 20个视频 | 内容自动存入知识库" Foreground="#555" FontSize="10" Margin="0,8,0,0"/>
+                <TextBlock Text="账号登录 (B站/QQ/微信)" Foreground="#aaa" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,8"/>
+
+                <!-- Bilibili -->
+                <TextBlock Text="B站学习登录:" Foreground="#7b68ee" FontSize="12" FontWeight="Bold" Margin="0,4,0,4"/>
+                <TextBlock Text="BiliLearn需要登录B站账号，每日学习上限20个视频。" Foreground="#555" FontSize="10" Margin="0,0,0,6"/>
+                <Grid Margin="0,0,0,12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <Border Grid.Column="0" Width="80" Height="80" Background="#2a2a3e" BorderBrush="#444" BorderThickness="1">
+                        <TextBlock x:Name="BiliQRCodePlaceholder" Text="点击获取\n二维码" Foreground="#666" FontSize="10"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                    </Border>
+                    <StackPanel Grid.Column="1" Margin="12,0" VerticalAlignment="Center">
+                        <TextBlock x:Name="BiliLoginStatus" Text="未登录" Foreground="#888" FontSize="11"/>
+                        <TextBlock Text="使用B站APP扫码" Foreground="#555" FontSize="9"/>
+                    </StackPanel>
+                    <Button Grid.Column="2" x:Name="BiliGetQRBtn" Content="扫码登录" Width="80" Height="32"
+                            Background="#7b68ee" Foreground="White" BorderThickness="0" Click="OnBiliGetQR"/>
+                </Grid>
+
+                <!-- QQ -->
+                <TextBlock Text="QQ Bot登录:" Foreground="#7b68ee" FontSize="12" FontWeight="Bold" Margin="0,4,0,4"/>
+                <TextBlock Text="用于QQ群/私聊消息收发" Foreground="#555" FontSize="10" Margin="0,0,0,6"/>
+                <Grid Margin="0,0,0,12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <Border Grid.Column="0" Width="80" Height="80" Background="#2a2a3e" BorderBrush="#444" BorderThickness="1">
+                        <TextBlock x:Name="QQQRCodePlaceholder" Text="点击获取\n二维码" Foreground="#666" FontSize="10"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                    </Border>
+                    <StackPanel Grid.Column="1" Margin="12,0" VerticalAlignment="Center">
+                        <TextBlock x:Name="QQLoginStatus" Text="未登录" Foreground="#888" FontSize="11"/>
+                        <TextBlock Text="使用QQ扫码授权" Foreground="#555" FontSize="9"/>
+                    </StackPanel>
+                    <Button Grid.Column="2" x:Name="QQGetQRBtn" Content="扫码登录" Width="80" Height="32"
+                            Background="#12b7f5" Foreground="White" BorderThickness="0" Click="OnQQGetQR"/>
+                </Grid>
+
+                <!-- WeChat -->
+                <TextBlock Text="微信 Bot登录:" Foreground="#7b68ee" FontSize="12" FontWeight="Bold" Margin="0,4,0,4"/>
+                <TextBlock Text="用于微信消息收发" Foreground="#555" FontSize="10" Margin="0,0,0,6"/>
+                <Grid Margin="0,0,0,12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <Border Grid.Column="0" Width="80" Height="80" Background="#2a2a3e" BorderBrush="#444" BorderThickness="1">
+                        <TextBlock x:Name="WeChatQRCodePlaceholder" Text="点击获取\n二维码" Foreground="#666" FontSize="10"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                    </Border>
+                    <StackPanel Grid.Column="1" Margin="12,0" VerticalAlignment="Center">
+                        <TextBlock x:Name="WeChatLoginStatus" Text="未登录" Foreground="#888" FontSize="11"/>
+                        <TextBlock Text="使用微信扫码授权" Foreground="#555" FontSize="9"/>
+                    </StackPanel>
+                    <Button Grid.Column="2" x:Name="WeChatGetQRBtn" Content="扫码登录" Width="80" Height="32"
+                            Background="#07c160" Foreground="White" BorderThickness="0" Click="OnWeChatGetQR"/>
+                </Grid>
+
+                <TextBlock Text="跳过登录也可使用核心功能，Bot功能将在登录后启用。" Foreground="#555" FontSize="10" Margin="0,4,0,0"/>
+            </StackPanel>
+
+            <!-- Step 13: Cloudflare Relay -->
+            <StackPanel x:Name="RelayPanel" Visibility="Collapsed" Margin="0,8">
+                <TextBlock Text="中转网站配置 (可选)" Foreground="#aaa" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                <TextBlock Text="用于PC-手机跨网络同步（不在同一局域网时）" Foreground="#555" FontSize="11" Margin="0,0,0,8"/>
+
+                <TextBlock Text="中转网站地址:" Foreground="#777" FontSize="11" Margin="0,0,0,4"/>
+                <TextBox x:Name="RelayUrlBox" Width="380" Height="30" Background="#2a2a3e" Foreground="#ddd"
+                         BorderBrush="#444" Padding="8,4" FontSize="12"
+                         Text="https://fairyai-sync.your-subdomain.workers.dev"/>
+                <TextBlock Text="填入Cloudflare Worker的完整URL" Foreground="#555" FontSize="10" Margin="0,4,0,8"/>
+
+                <TextBlock Text="共享密钥 (必须与Worker环境变量FAIRYAI_SECRET一致):" Foreground="#777" FontSize="11" Margin="0,4,0,4"/>
+                <TextBox x:Name="RelaySecretBox" Width="380" Height="30" Background="#2a2a3e" Foreground="#ddd"
+                         BorderBrush="#444" Padding="8,4" FontSize="12"/>
+
+                <TextBlock Text="Cloudflare Worker部署步骤:" Foreground="#7b68ee" FontSize="11" FontWeight="Bold" Margin="0,12,0,4"/>
+                <TextBlock Text="1. 登录 dash.cloudflare.com → Workers &amp; Pages" Foreground="#888" FontSize="10" Margin="0,0,0,2"/>
+                <TextBlock Text="2. 创建Worker，粘贴安装目录下的 cloudflare-worker.js" Foreground="#888" FontSize="10" Margin="0,0,0,2"/>
+                <TextBlock Text="3. 设置环境变量 FAIRYAI_SECRET = 你的共享密钥" Foreground="#888" FontSize="10" Margin="0,0,0,2"/>
+                <TextBlock Text="4. 部署后复制Worker URL填入上方" Foreground="#888" FontSize="10" Margin="0,0,0,2"/>
+                <TextBlock Text="Worker源码位置: 安装目录\\cloudflare-worker.js" Foreground="#40e0d0" FontSize="10" Margin="0,8,0,0"/>
             </StackPanel>
         </Grid>
 

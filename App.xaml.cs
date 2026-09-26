@@ -118,6 +118,8 @@ public partial class App : Application
             var screenControl = new ScreenControlService();
             var visionService = new VisionService();
             var blenderService = new BlenderService();
+            var officeService = new OfficeIntegrationService();
+            var kbService = new KnowledgeBaseService();
             toolRegistry.Register(new TakeScreenshotTool(visionService));
             toolRegistry.Register(new MouseClickTool(screenControl));
             toolRegistry.Register(new MouseDoubleClickTool(screenControl));
@@ -126,6 +128,8 @@ public partial class App : Application
             toolRegistry.Register(new PressKeyTool(screenControl));
             toolRegistry.Register(new ScrollTool(screenControl));
             toolRegistry.Register(new ConvertImageTo3DTool(blenderService));
+            toolRegistry.Register(new OpenOfficeDocTool(officeService, kbService));
+            toolRegistry.Register(new GetOfficeInfoTool(officeService));
             sc.AddSingleton(toolRegistry);
             sc.AddSingleton(sp => new FunctionCallingService(
                 sp.GetRequiredService<ILlmService>(), toolRegistry));

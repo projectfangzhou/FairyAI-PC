@@ -7,7 +7,7 @@ namespace MyAiAssistant.Windows;
 public partial class SetupWizardWindow : Window
 {
     private int _currentStep = 1;
-    private const int TotalSteps = 12;
+    private const int TotalSteps = 13;
 
     public SetupWizardWindow()
     {
@@ -21,28 +21,23 @@ public partial class SetupWizardWindow : Window
 
     private void OnBiliGetQR(object sender, RoutedEventArgs e)
     {
-        // Generate Bilibili QR code URL for login
-        BiliQRCodePlaceholder.Text = "二维码生成中...\n请打开B站APP扫码";
-        BiliLoginStatus.Text = "请使用B站APP扫描二维码登录";
+        BiliQRCodePlaceholder.Text = "二维码\n生成中";
+        BiliLoginStatus.Text = "请使用B站APP扫码";
+        BiliLoginStatus.Foreground = System.Windows.Media.Brushes.Yellow;
+    }
 
-        // Save a placeholder for Bilibili login state
-        // In production, this would call Bilibili's QR login API
-        var biliPath = System.IO.Path.Combine(
-            AppDomain.CurrentDomain.BaseDirectory, "bilibili_login.json");
-        System.IO.File.WriteAllText(biliPath, System.Text.Json.JsonSerializer.Serialize(new
-        {
-            status = "pending",
-            created = System.DateTime.Now
-        }));
+    private void OnQQGetQR(object sender, RoutedEventArgs e)
+    {
+        QQQRCodePlaceholder.Text = "二维码\n生成中";
+        QQLoginStatus.Text = "请使用QQ扫码授权";
+        QQLoginStatus.Foreground = System.Windows.Media.Brushes.Yellow;
+    }
 
-        BiliQRCodePlaceholder.Text = "┌─────────────────┐\n" +
-            "│  ■■■  ■    ■■■  │\n" +
-            "│  ■  ■  ■ ■  ■  │\n" +
-            "│  ■■■  ■■■  ■■■  │\n" +
-            "│  ■  ■    ■  ■  │\n" +
-            "│  ■■■  ■    ■■■  │\n" +
-            "└─────────────────┘\n" +
-            "打开B站APP扫码";
+    private void OnWeChatGetQR(object sender, RoutedEventArgs e)
+    {
+        WeChatQRCodePlaceholder.Text = "二维码\n生成中";
+        WeChatLoginStatus.Text = "请使用微信扫码授权";
+        WeChatLoginStatus.Foreground = System.Windows.Media.Brushes.Yellow;
     }
 
     private void OnLLMProviderChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
@@ -304,6 +299,7 @@ public partial class SetupWizardWindow : Window
         CustomPlatformPanel.Visibility = _currentStep == 10 ? Visibility.Visible : Visibility.Collapsed;
         SkillsPanel.Visibility = _currentStep == 11 ? Visibility.Visible : Visibility.Collapsed;
         BiliLoginPanel.Visibility = _currentStep == 12 ? Visibility.Visible : Visibility.Collapsed;
+        RelayPanel.Visibility = _currentStep == 13 ? Visibility.Visible : Visibility.Collapsed;
 
         BackBtn.Visibility = _currentStep > 1 ? Visibility.Visible : Visibility.Collapsed;
         NextBtn.Visibility = _currentStep < TotalSteps ? Visibility.Visible : Visibility.Collapsed;
@@ -323,7 +319,8 @@ public partial class SetupWizardWindow : Window
         9 => "唤醒词与界面",
         10 => "自定义平台",
         11 => "AI技能",
-        12 => "B站登录",
+        12 => "账号登录",
+        13 => "中转网站",
         _ => ""
     };
 
@@ -458,6 +455,17 @@ public partial class SetupWizardWindow : Window
                 System.IO.File.Copy(installerSkills,
                     System.IO.Path.Combine(targetSkillsDir, skill + ".md"), overwrite: true);
             }
+        }
+
+        // Relay config
+        config.Sync.Enabled = !string.IsNullOrWhiteSpace(RelayUrlBox.Text.Trim());
+        config.Sync.SignalRUrl = RelayUrlBox.Text.Trim();
+        if (!string.IsNullOrWhiteSpace(RelaySecretBox.Text.Trim()))
+        {
+            // Store relay secret encrypted
+            var relaySecretPath = System.IO.Path.Combine(
+                AppDomain.CurrentDomain.BaseDirectory, "relay_secret.dat");
+            System.IO.File.WriteAllText(relaySecretPath, Services.ApiKeyProtector.Protect(RelaySecretBox.Text.Trim()));
         }
 
         // Set Live2D config
