@@ -390,9 +390,26 @@ public static class ConfigManager
     /// <summary>
     /// Hash a pairing code for secure storage.
     /// </summary>
+    /// <summary>Generate or load a random per-device salt (not hardcoded).</summary>
+    private static string GetOrCreateSalt()
+    {
+        var saltPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "pairing.salt");
+        if (File.Exists(saltPath))
+            return File.ReadAllText(saltPath);
+        var salt = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
+        File.WriteAllText(saltPath, salt);
+        File.SetAttributes(saltPath, FileAttributes.Hidden | FileAttributes.System);
+        return salt;
+    }
+
+    /// <summary>
+    /// Hash a pairing code using a random per-device salt.
+    /// Salt is generated on first use and stored locally.
+    /// </summary>
     public static string HashPairingCode(string code)
     {
-        var saltedBytes = Encoding.UTF8.GetBytes(code + "FairyAI_Salt_2024");
+        var salt = GetOrCreateSalt();
+        var saltedBytes = Encoding.UTF8.GetBytes(code + salt);
         var hash = SHA256.HashData(saltedBytes);
         return Convert.ToHexString(hash);
     }

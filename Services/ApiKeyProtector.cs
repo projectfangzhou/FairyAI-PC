@@ -10,22 +10,25 @@ namespace MyAiAssistant.Services;
 /// </summary>
 public static class ApiKeyProtector
 {
-    private const string Entropy = "FairyAI_KeyVault_2026";
+    // Entropy is generated at runtime and stored in a separate protected file
+    private static byte[] _entropy;
     private const int MaxUnlockAttempts = 5;
     private const int LockoutMinutes = 30;
     // Independent HMAC key — NOT the same as DPAPI entropy
     private static readonly byte[] HmacKey;
     private static readonly string HmacKeyPath = Path.Combine(
         AppDomain.CurrentDomain.BaseDirectory, "hmac.key");
+    private static readonly string EntropyPath = Path.Combine(
+        AppDomain.CurrentDomain.BaseDirectory, "entropy.dat");
     private static readonly string LockPath = Path.Combine(
         AppDomain.CurrentDomain.BaseDirectory, "keylock.dat");
     private static readonly string LogPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "fairy.log");
 
     static ApiKeyProtector()
     {
-        // Generate or load HMAC key (independent from DPAPI entropy)
         try
         {
+            // Generate or load HMAC key (independent from DPAPI entropy)
             if (File.Exists(HmacKeyPath))
                 HmacKey = File.ReadAllBytes(HmacKeyPath);
             else
@@ -34,10 +37,21 @@ public static class ApiKeyProtector
                 File.WriteAllBytes(HmacKeyPath, HmacKey);
                 File.SetAttributes(HmacKeyPath, FileAttributes.Hidden | FileAttributes.System);
             }
+
+            // Generate or load DPAPI entropy (runtime-generated, not hardcoded)
+            if (File.Exists(EntropyPath))
+                _entropy = File.ReadAllBytes(EntropyPath);
+            else
+            {
+                _entropy = RandomNumberGenerator.GetBytes(32);
+                File.WriteAllBytes(EntropyPath, _entropy);
+                File.SetAttributes(EntropyPath, FileAttributes.Hidden | FileAttributes.System);
+            }
         }
         catch
         {
             HmacKey = RandomNumberGenerator.GetBytes(32);
+            _entropy = RandomNumberGenerator.GetBytes(32);
         }
     }
 
@@ -48,8 +62,7 @@ public static class ApiKeyProtector
         try
         {
             var bytes = Encoding.UTF8.GetBytes(plaintext);
-            var entropy = Encoding.UTF8.GetBytes(Entropy);
-            var encrypted = ProtectedData.Protect(bytes, entropy, DataProtectionScope.CurrentUser);
+            var encrypted = ProtectedData.Protect(bytes, _entropy, DataProtectionScope.CurrentUser);
             // Add HMAC for integrity
             var hmac = ComputeHmac(encrypted);
             var combined = new byte[encrypted.Length + 32];
@@ -86,8 +99,7 @@ public static class ApiKeyProtector
                 return "";
             }
 
-            var entropy = Encoding.UTF8.GetBytes(Entropy);
-            var decrypted = ProtectedData.Unprotect(encrypted, entropy, DataProtectionScope.CurrentUser);
+            var decrypted = ProtectedData.Unprotect(encrypted, _entropy, DataProtectionScope.CurrentUser);
             ResetAttempts();
             return Encoding.UTF8.GetString(decrypted);
         }
