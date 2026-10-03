@@ -1,3 +1,4 @@
+﻿using System.IO;
 using System.Net;
 using System.Text;
 using System.Text.Json;
@@ -5,7 +6,7 @@ using System.Text.Json;
 namespace MyAiAssistant.Services;
 
 /// <summary>
-/// Web management dashboard — remote configuration, log viewing,
+/// Web management dashboard 鈥?remote configuration, log viewing,
 /// multi-device management, performance analysis.
 /// </summary>
 public class WebDashboardService
@@ -90,12 +91,12 @@ body { font-family: -apple-system, sans-serif; background: #1a1a2e; color: #fff;
 .stat { font-size: 24px; font-weight: bold; color: #40e0d0; }
 </style></head>
 <body>
-<div class='header'><h1>🧚 FairyAI Dashboard</h1><p>Web管理后台</p></div>
+<div class='header'><h1>馃 FairyAI Dashboard</h1><p>Web绠＄悊鍚庡彴</p></div>
 <div class='grid'>
-<div class='card'><h3>📊 性能</h3><div class='stat' id='cpu'>--</div><p>CPU</p><div class='stat' id='mem'>--</div><p>内存</p></div>
-<div class='card'><h3>🔒 安全</h3><div class='stat' id='events'>--</div><p>审计事件</p></div>
-<div class='card'><h3>📝 日志</h3><pre id='logs' style='max-height:200px;overflow:auto;font-size:11px;'></pre></div>
-<div class='card'><h3>🤖 Agent</h3><div class='stat' id='tasks'>--</div><p>活跃任务</p></div>
+<div class='card'><h3>馃搳 鎬ц兘</h3><div class='stat' id='cpu'>--</div><p>CPU</p><div class='stat' id='mem'>--</div><p>鍐呭瓨</p></div>
+<div class='card'><h3>馃敀 瀹夊叏</h3><div class='stat' id='events'>--</div><p>瀹¤浜嬩欢</p></div>
+<div class='card'><h3>馃摑 鏃ュ織</h3><pre id='logs' style='max-height:200px;overflow:auto;font-size:11px;'></pre></div>
+<div class='card'><h3>馃 Agent</h3><div class='stat' id='tasks'>--</div><p>娲昏穬浠诲姟</p></div>
 </div>
 <script>
 async function update() {
@@ -167,3 +168,4 @@ update(); setInterval(update, 5000);
         try { File.AppendAllText(LogPath, $"[{DateTime.Now:HH:mm:ss}] [WEB] {msg}\n"); } catch { }
     }
 }
+

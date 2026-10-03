@@ -1,92 +1,67 @@
-using System.Text.Json;
+using System.IO;
+using System.Linq;
+using MyAiAssistant.Models;
 
 namespace MyAiAssistant.Services;
 
 /// <summary>
-/// RAG (Retrieval-Augmented Generation) service.
-/// Combines vector search with LLM for accurate knowledge retrieval.
+/// RAG service — vector search + LLM for knowledge retrieval.
 /// </summary>
 public class RAGService
 {
     private readonly VectorDatabase _vectorDb;
     private readonly ILlmService _llm;
-    private readonly string _knowledgeDir;
 
     public RAGService(ILlmService llm, string knowledgeDir = "")
     {
         _llm = llm;
-        _knowledgeDir = string.IsNullOrEmpty(knowledgeDir)
+        var dir = string.IsNullOrEmpty(knowledgeDir)
             ? Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "knowledge")
             : knowledgeDir;
-        _vectorDb = new VectorDatabase(Path.Combine(_knowledgeDir, "vectordb.json"));
+        Directory.CreateDirectory(dir);
+        _vectorDb = new VectorDatabase(Path.Combine(dir, "vectordb.json"));
     }
 
-    /// <summary>Index a document into the vector database.</summary>
     public async Task IndexDocumentAsync(string filePath)
     {
         var text = await File.ReadAllTextAsync(filePath);
         var chunks = SplitIntoChunks(text, 500);
-
         for (int i = 0; i < chunks.Count; i++)
         {
-            var id = $"{Path.GetFileName(filePath)}_{i}";
+            var id = Path.GetFileNameWithoutExtension(filePath) + "_" + i;
             var embedding = await GetEmbeddingAsync(chunks[i]);
-            _vectorDb.Add(id, embedding, chunks[i], new Dictionary<string, object>
-            {
-                ["source"] = filePath,
-                ["chunk"] = i
-            });
+            _vectorDb.Add(id, embedding, chunks[i]);
         }
-
         _vectorDb.Save();
     }
 
-    /// <summary>Query the RAG system and get context-aware response.</summary>
     public async Task<string> QueryAsync(string question, int topK = 5)
     {
-        // Get query embedding
         var queryEmbedding = await GetEmbeddingAsync(question);
-
-        // Search vector database
         var results = _vectorDb.Search(queryEmbedding, topK);
+        if (results.Count == 0) return "知识库中没有找到相关信息。";
 
-        if (results.Count == 0)
-            return "知识库中没有找到相关信息。";
-
-        // Build context from search results
         var context = string.Join("\n\n", results.Select(r => r.Document));
-
-        // Generate response with context
-        var prompt = $"基于以下上下文回答问题。\n\n上下文:\n{context}\n\n问题: {question}";
+        var prompt = "基于以下上下文回答问题。\n\n上下文:\n" + context + "\n\n问题: " + question;
 
         var config = ConfigManager.Load();
         var response = new System.Text.StringBuilder();
-        await foreach (var chunk in _llm.StreamChatAsync([], prompt, config.LLM.BaseUrl, config.LLM.Model, config.LLM.ApiKey))
+        await foreach (var chunk in _llm.StreamChatAsync(new List<ChatMessage>(), prompt, config.LLM.BaseUrl, config.LLM.Model, config.LLM.ApiKey))
             response.Append(chunk);
-
         return response.ToString();
-    }
-
-    /// <summary>Incremental update: add new document without re-indexing everything.</summary>
-    public async Task IncrementalUpdateAsync(string filePath)
-    {
-        await IndexDocumentAsync(filePath);
     }
 
     private static List<string> SplitIntoChunks(string text, int chunkSize)
     {
         var chunks = new List<string>();
         for (int i = 0; i < text.Length; i += chunkSize)
-        {
-            var chunk = text.Substring(i, Math.Min(chunkSize, text.Length - i));
-            chunks.Add(chunk);
-        }
+            chunks.Add(text.Substring(i, Math.Min(chunkSize, text.Length - i)));
         return chunks;
     }
 
     private async Task<float[]> GetEmbeddingAsync(string text)
     {
-        // Simple hash-based embedding (replace with real embedding API)
+        await Task.CompletedTask;
         var hash = System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(text));
         var embedding = new float[256];
         for (int i = 0; i < 256; i++)

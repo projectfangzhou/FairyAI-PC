@@ -1,3 +1,5 @@
+﻿using System.Linq;
+using System.IO;
 using System.Text.Json;
 
 namespace MyAiAssistant.Services;
@@ -122,3 +124,4 @@ public class VectorDatabase
         return dot / (float)(Math.Sqrt(normA) * Math.Sqrt(normB) + 1e-8);
     }
 }
+

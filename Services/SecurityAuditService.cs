@@ -1,9 +1,11 @@
+﻿using System.Linq;
+using System.IO;
 using System.Text.Json;
 
 namespace MyAiAssistant.Services;
 
 /// <summary>
-/// Security and compliance service — zero trust, device fingerprinting,
+/// Security and compliance service 鈥?zero trust, device fingerprinting,
 /// behavioral baseline, anomaly detection, audit logging.
 /// </summary>
 public class SecurityAuditService
@@ -152,3 +154,4 @@ public class SecurityAuditService
         try { File.AppendAllText(LogPath, $"[{DateTime.Now:HH:mm:ss}] [SEC] {msg}\n"); } catch { }
     }
 }
+
