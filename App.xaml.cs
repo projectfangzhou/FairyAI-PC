@@ -75,6 +75,13 @@ public partial class App : Application
             sc.AddSingleton<ILive2DService, Live2DService>();
             sc.AddSingleton<IScreenControlService, ScreenControlService>();
             sc.AddSingleton<IAudioConverter, FfmpegAudioConverter>();
+            sc.AddSingleton<VectorDatabase>();
+            sc.AddSingleton<RAGService>();
+            sc.AddSingleton<AgentService>();
+            sc.AddSingleton<MCPClient>();
+            sc.AddSingleton<LocalModelService>();
+            sc.AddSingleton<SecurityAuditService>();
+            sc.AddSingleton<WebDashboardService>();
             sc.AddSingleton<ConnectivityManager>();
             sc.AddSingleton<FairyViewModel>();
 
@@ -130,6 +137,15 @@ public partial class App : Application
             sc.AddSingleton(translateService);
             _services = sc.BuildServiceProvider();
             Log("DI container built");
+
+            // Start Web Dashboard
+            var dashboard = _services.GetRequiredService<WebDashboardService>();
+            _ = dashboard.StartAsync();
+            Log("Web dashboard starting on port 8080");
+
+            // Log security event
+            var auditService = _services.GetRequiredService<SecurityAuditService>();
+            auditService.LogEvent("APP_START", "FairyAI v2.0.0 started");
 
             // Auto-deploy Blender addon
             BlenderService.DeployAddon();
