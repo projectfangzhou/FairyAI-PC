@@ -1,7 +1,7 @@
-; Fairy AI Installer Script for Inno Setup
+﻿; Fairy AI Installer Script for Inno Setup
 
 #define MyAppName "Fairy AI"
-#define MyAppVersion "2.0.0"
+#define MyAppVersion "1.20.1"
 #define MyAppPublisher "Fairy AI"
 #define MyAppExeName "MyAiAssistant.exe"
 
@@ -36,25 +36,25 @@ Source: "deploy_skills.bat"; DestDir: "{app}"; Flags: ignoreversion
 [Run]
 ; Auto-download and install .NET 8 Runtime if not present
 Filename: "powershell.exe"; Parameters: "-ExecutionPolicy Bypass -Command ""irm https://dot.net/dotnet-install.ps1 | iex -Channel 8.0 -Runtime dotnet"""; \
-    StatusMsg: "正在安装 .NET 8 运行库..."; Flags: runhidden waituntilterminated; \
+    StatusMsg: "姝ｅ湪瀹夎 .NET 8 杩愯搴?.."; Flags: runhidden waituntilterminated; \
     Check: not IsDotNet8Installed
 
 ; Auto-download and install WebView2 Runtime if not present (required for Live2D)
 Filename: "powershell.exe"; Parameters: "-ExecutionPolicy Bypass -Command ""irm https://go.microsoft.com/fwlink/p/?LinkId=2124703 -OutFile $env:TEMP\MicrosoftEdgeWebview2Setup.exe; Start-Process $env:TEMP\MicrosoftEdgeWebview2Setup.exe -ArgumentList '/silent /install' -Wait"""; \
-    StatusMsg: "正在安装 WebView2 运行库..."; Flags: runhidden waituntilterminated; \
+    StatusMsg: "姝ｅ湪瀹夎 WebView2 杩愯搴?.."; Flags: runhidden waituntilterminated; \
     Check: not IsWebView2Installed
 
 ; Deploy FairyAI Blender addon to Blender addon directories
 Filename: "{app}\BlenderAddon\deploy_blender_addon.bat"; \
-    StatusMsg: "正在安装 Blender 插件..."; Flags: runhidden waituntilterminated
+    StatusMsg: "姝ｅ湪瀹夎 Blender 鎻掍欢..."; Flags: runhidden waituntilterminated
 
 ; Deploy skills
 Filename: "{app}\deploy_skills.bat"; \
-    StatusMsg: "正在部署 AI 技能..."; Flags: runhidden waituntilterminated
+    StatusMsg: "姝ｅ湪閮ㄧ讲 AI 鎶€鑳?.."; Flags: runhidden waituntilterminated
 
 ; Show setup complete page
 Filename: "{app}\{#MyAppExeName}"; Parameters: "--setup-complete"; \
-    Description: "启动 Fairy AI"; Flags: nowait postinstall skipifsilent
+    Description: "鍚姩 Fairy AI"; Flags: nowait postinstall skipifsilent
 
 [Code]
 function IsDotNet8Installed(): Boolean;
@@ -213,3 +213,4 @@ begin
   if CurStep = ssPostInstall then
     SaveConfig;
 end;
+
